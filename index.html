@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Healthcare</title>
+    <link rel="stylesheet" href="style.css">
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Plus+Jakarta+Sans:wght@400;600;800&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+</head>
+<body>
+    <div class="app-shell">
+        <aside class="sidebar-nav">
+            <div class="logo-area">
+                <div class="shield-icon">🛡️</div>
+                <span>Healthcare Breach Tracker <small>INTEL</small></span>
+            </div>
+            <div class="stats-summary">
+                <label>GLOBAL IMPACT</label>
+                <div id="total-affected" class="big-num">---</div>
+                <p>Total Records Exposed</p>
+            </div>
+            <nav class="side-links">
+                <a href="#" class="nav-item active">Breach Radar</a>
+                <a href="https://medisecproject.org/#projects" target="_blank" class="nav-item">Stay informed! Read about cybersecurity's role in healthcare now.</a>
+            </nav>
+        </aside>
+
+        <main class="viewport">
+            <header class="top-bar">
+                <div class="sync-wrapper">
+                    <span id="sync-status">INITIALIZING AI...</span>
+                </div>
+                <button class="cta-pill" onclick="openProjectBriefing()" style="cursor:pointer; border:none; margin-right:10px;">How to Read Chart</button>
+            </header>
+            
+            <div class="chart-container">
+                <canvas id="breachChart"></canvas>
+            </div>
+        </main>
+
+        <div id="side-panel" class="intel-drawer">
+            <div class="drawer-header">
+                <button class="close-btn" onclick="closePanel()">×</button>
+                <h2 style="margin-top: 10px;">TERMINAL DATA</h2>
+            </div>
+            <div id="panel-content" class="drawer-body">
+                </div>
+        </div>
+    </div>
+    <script src="script.js"></script>
+</body>
+</html>
