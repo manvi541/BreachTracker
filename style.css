@@ -2,7 +2,7 @@
     --bg-main: #0b0e14;
     --bg-side: #11141b;
     --bg-card: #161b22;
-    --accent: #e1eaec;
+    --accent: #00d2ff; /* FIXED: Updated variable hex mapping to match your active accent color */
     --medisec-gold: #ffd700;
     --danger: #ff4757;
     --text-dim: #8b949e;
@@ -55,13 +55,54 @@ body {
 .ai-pulse { width: 8px; height: 8px; background: var(--accent); border-radius: 50%; display: inline-block; margin-right: 8px; animation: glow 1.5s infinite; }
 @keyframes glow { 0% { opacity: 1; } 50% { opacity: 0.3; } 100% { opacity: 1; } }
 
-.intel-drawer { width: 420px; background: var(--bg-side); border-left: 1px solid var(--border); position: fixed; right: -420px; top: 0; height: 100%; transition: 0.4s cubic-bezier(0.16, 1, 0.3, 1); padding: 40px; box-sizing: border-box; z-index: 1000; overflow-y: auto; }
-.intel-drawer.open { right: 0; box-shadow: -20px 0 60px rgba(0,0,0,0.6); }
+/* ==========================================================================
+   FIXED INTEL DRAWER VIEWPORT ARCHITECTURE
+   ========================================================================== */
+.intel-drawer { 
+    width: 420px; 
+    background: var(--bg-side); 
+    border-left: 1px solid var(--border); 
+    position: fixed; 
+    right: -420px; 
+    top: 0; 
+    height: 100%; 
+    transition: 0.4s cubic-bezier(0.16, 1, 0.3, 1); 
+    box-sizing: border-box; 
+    z-index: 1000; 
+    
+    /* REFACTOR: Turn into vertical structural layout grid framework */
+    display: flex;
+    flex-direction: column;
+    overflow: hidden; /* Stops overall drawer double scrollbars completely */
+}
+
+.intel-drawer.open { 
+    right: 0; 
+    box-shadow: -20px 0 60px rgba(0,0,0,0.6); 
+}
+
+/* FIXED: Isolate sticky header section parameters */
+.drawer-header {
+    padding: 30px 30px 20px 30px;
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+}
+
+/* FIXED: Dedicated view container to isolate inner document text scroll mechanics */
+.drawer-body {
+    padding: 30px;
+    overflow-y: auto; /* Force scrollbar inside content field box only */
+    flex: 1;
+}
+
 .detail-item { margin-bottom: 25px; }
 .detail-item label { font-size: 10px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 1px; }
 .value { font-size: 16px; color: #fff; font-weight: bold; margin-top: 5px; }
-.close-btn { background: none; border: none; color: #fff; font-size: 32px; cursor: pointer; float: right; }
+.close-btn { background: none; border: none; color: #fff; font-size: 32px; cursor: pointer; float: right; line-height: 0.8; }
 
+/* ==========================================================================
+   DESKTOP COMPILATION TARGET LAYER
+   ========================================================================== */
 @media (max-width: 768px) {
     .app-shell { flex-direction: column; height: auto; }
     .sidebar-nav { width: 100%; border-right: none; border-bottom: 1px solid var(--border); box-sizing: border-box; }
