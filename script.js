@@ -12,7 +12,6 @@ async function syncIntelligence() {
         const csv = await response.text();
         const raw = d3.csvParse(csv);
         
-        // FIXED: Handle empty sheets gracefully during formula reload states
         if (!raw || raw.length === 0) {
             document.getElementById('sync-status').innerText = "SHEET LOADING... RETRYING";
             return;
@@ -22,7 +21,6 @@ async function syncIntelligence() {
         const processed = [];
 
         for (const r of raw) {
-            // FIXED: Guard against undefined or shifted columns
             if (!r || !r["State"] || !r["Breach Submission Date"]) continue;
 
             const affected = parseInt(r["Individuals Affected"]) || 0;
@@ -38,7 +36,6 @@ async function syncIntelligence() {
                 }
             }
 
-            // Skip this specific row if the date failed to parse, instead of crashing the whole app
             if (isNaN(recordDate.getTime())) continue;
 
             processed.push({
@@ -53,12 +50,12 @@ async function syncIntelligence() {
             });
         }
 
-        // Clean out any mapped data points assigned to invalid fallback states
         const filteredData = processed.filter(d => d.y > 0);
 
         document.getElementById('total-affected').innerText = grandTotal.toLocaleString();
 
         if (mainChart) {
+            filteredData.sort((a, b) => a.x - b.x);
             mainChart.data.datasets[0].data = filteredData;
             mainChart.update();
         } else {
@@ -76,16 +73,22 @@ async function syncIntelligence() {
 
 function initChart(data) {
     const ctx = document.getElementById('breachChart').getContext('2d');
-    const isMobile = window.innerWidth < 768;
+    
+    // Explicit chronological sorting for unified timeline compilation
+    data.sort((a, b) => a.x - b.x);
+
+    if (mainChart) {
+        mainChart.destroy();
+    }
 
     mainChart = new Chart(ctx, {
         type: 'bubble',
         data: {
             datasets: [{
                 data: data,
-                backgroundColor: 'rgba(0, 210, 255, 0.25)',
+                backgroundColor: 'rgba(0, 210, 255, 0.35)',
                 borderColor: '#00d2ff',
-                borderWidth: 1.2,
+                borderWidth: 1.5,
                 hoverBackgroundColor: '#ff4757',
                 hoverBorderColor: '#ff4757'
             }]
@@ -93,34 +96,71 @@ function initChart(data) {
         options: {
             responsive: true,
             maintainAspectRatio: false,
+            layout: {
+                padding: {
+                    right: 40,
+                    top: 20
+                }
+            },
             scales: {
                 x: {
                     type: 'time',
-                    time: { unit: 'month', displayFormats: { month: 'MMM YYYY' } },
-                    grid: { color: 'rgba(255,255,255,0.02)' },
-                    ticks: { color: '#777', font: { family: 'JetBrains Mono', size: 10 } }
+                    time: {
+                        parser: 'MM/dd/yyyy', 
+                        unit: 'day',
+                        displayFormats: { day: 'MMM d, yyyy' }
+                    },
+                    grid: { 
+                        color: 'rgba(255, 255, 255, 0.05)',
+                        borderDash: [5, 5] 
+                    },
+                    ticks: { 
+                        color: '#8b949e', 
+                        font: { family: 'JetBrains Mono', size: 10 },
+                        maxRotation: 45,
+                        autoSkip: true,
+                        maxTicksLimit: 12
+                    },
+                    title: {
+                        display: true,
+                        text: 'TIMELINE OF INCIDENTS',
+                        color: '#777',
+                        font: { family: 'JetBrains Mono', size: 10, weight: 'bold' }
+                    }
                 },
                 y: {
                     min: 0,
                     max: 51,
-                    grid: { display: false },
+                    grid: { color: 'rgba(255, 255, 255, 0.02)' },
                     ticks: {
-                        color: '#777',
-                        font: { size: isMobile ? 7 : 9, family: 'JetBrains Mono' },
+                        color: '#8b949e',
+                        font: { size: 10, family: 'JetBrains Mono' },
                         stepSize: 1,
-                        callback: v => Object.keys(stateMap).find(k => stateMap[k] === Math.round(v))
+                        autoSkip: false, 
+                        callback: function(v) {
+                            return Object.keys(stateMap).find(k => stateMap[k] === Math.round(v)) || '';
+                        }
                     }
                 }
             },
             plugins: {
                 legend: { display: false },
                 tooltip: {
+                    backgroundColor: '#161b22',
+                    titleFont: { family: 'JetBrains Mono' },
+                    bodyFont: { family: 'Plus Jakarta Sans' },
+                    borderColor: 'rgba(0, 210, 255, 0.2)',
+                    borderWidth: 1,
                     callbacks: {
-                        label: c => `${c.raw.entity} (${c.raw.totalExposed.toLocaleString()} records)`
+                        label: c => ` ${c.raw.entity} [${c.raw.totalExposed.toLocaleString()} records]`
                     }
                 }
             },
-            onClick: (e, el) => { if (el[0]) openDrawer(data[el[0].index]); }
+            onClick: (e, el) => { 
+                if (el[0]) {
+                    openDrawer(mainChart.data.datasets[0].data[el[0].index]); 
+                }
+            }
         }
     });
 }
@@ -195,6 +235,6 @@ function openDrawer(d) {
 
 function closePanel() { document.getElementById('side-panel').classList.remove('open'); }
 
-// Setup an auto-retry loop every 15 seconds to gracefully handle formula reloads
+// 15-second loop auto-refetches in background so it recovers seamlessly from loading states
 setInterval(syncIntelligence, 15000);
 syncIntelligence();
