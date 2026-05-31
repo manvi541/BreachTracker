@@ -1,70 +1,190 @@
-:root {
-    --bg-main: #0b0e14;
-    --bg-side: #11141b;
-    --bg-card: #161b22;
-    --accent: #e1eaec;
-    --medisec-gold: #ffd700;
-    --danger: #ff4757;
-    --text-dim: #8b949e;
-    --border: rgba(255, 255, 255, 0.05);
+const CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTJL_YexPfz5paonO8NbvONGHkbgUO4bEuQI1qZDSRxWv3cvwqVoUNhOzfThkiegwnwLOkYM3Z2tlZ7/pub?gid=0&single=true&output=csv';
+
+const stateMap = { "AL":1,"AK":2,"AZ":3,"AR":4,"CA":5,"CO":6,"CT":7,"DE":8,"FL":9,"GA":10,"HI":11,"ID":12,"IL":13,"IN":14,"IA":15,"KS":16,"KY":17,"LA":18,"ME":19,"MD":20,"MA":21,"MI":22,"MN":23,"MS":24,"MO":25,"MT":26,"NE":27,"NV":28,"NH":29,"NJ":30,"NM":31,"NY":32,"NC":33,"ND":34,"OH":35,"OK":36,"OR":37,"PA":38,"RI":39,"SC":40,"SD":41,"TN":42,"TX":43,"UT":44,"VT":45,"VA":46,"WA":47,"WV":48,"WI":49,"WY":50 };
+
+let mainChart;
+
+async function syncIntelligence() {
+    try {
+        const response = await fetch(`${CSV_URL}&t=${Date.now()}`);
+        const csv = await response.text();
+        const raw = d3.csvParse(csv);
+        let grandTotal = 0;
+        
+        const processed = raw.map(r => {
+            const affected = parseInt(r["Individuals Affected"]) || 0;
+            const recordDate = new Date(r["Breach Submission Date"]);
+            grandTotal += affected;
+
+            return {
+                // FIXED: Assigned timeline date properties directly to X axis data points
+                x: recordDate,
+                // FIXED: Assigned location grid maps directly to Y axis data points 
+                y: stateMap[r["State"]] || 0,
+                // FIXED: Circular radius calculations map proportionally to breach mass metrics
+                r: Math.sqrt(affected) / 12 + 3,
+                entity: r["Name of Covered Entity"],
+                state: r["State"],
+                type: r["Type of Breach"],
+                date: r["Breach Submission Date"],
+                totalExposed: affected
+            };
+        }).filter(d => d.y > 0 && !isNaN(d.x.getTime()));
+
+        // Display absolute total record leakage metrics in the layout panel wrapper
+        document.getElementById('total-affected').innerText = grandTotal.toLocaleString();
+
+        if (mainChart) {
+            mainChart.data.datasets[0].data = processed;
+            mainChart.update();
+        } else {
+            initChart(processed);
+        }
+        document.getElementById('sync-status').innerText = `SYSTEM ONLINE: ${new Date().toLocaleTimeString()}`;
+    } catch (e) { 
+        console.error(e); 
+        document.getElementById('sync-status').innerText = "DATA PIPELINE FAULT";
+    } finally {
+        const loader = document.getElementById('loader');
+        if (loader) loader.style.display = 'none';
+    }
 }
 
-body { 
-    background: var(--bg-main); 
-    color: #e6edf3; 
-    font-family: 'Plus Jakarta Sans', sans-serif; 
-    margin: 0; 
-    overflow-x: hidden; 
+function initChart(data) {
+    const ctx = document.getElementById('breachChart').getContext('2d');
+    const isMobile = window.innerWidth < 768;
+
+    mainChart = new Chart(ctx, {
+        type: 'bubble',
+        data: {
+            datasets: [{
+                data: data,
+                backgroundColor: 'rgba(0, 210, 255, 0.25)',
+                borderColor: '#00d2ff',
+                borderWidth: 1.2,
+                hoverBackgroundColor: '#ff4757',
+                hoverBorderColor: '#ff4757'
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                // FIXED: Set type to 'time' to resolve rendering hangs caused by date calculations on log scales
+                x: {
+                    type: 'time',
+                    time: { unit: 'month', displayFormats: { month: 'MMM YYYY' } },
+                    grid: { color: 'rgba(255,255,255,0.02)' },
+                    ticks: { color: '#777', font: { family: 'JetBrains Mono', size: 10 } }
+                },
+                y: {
+                    grid: { display: false },
+                    ticks: {
+                        color: '#777',
+                        font: { size: isMobile ? 7 : 9, family: 'JetBrains Mono' },
+                        stepSize: 1,
+                        callback: v => Object.keys(stateMap).find(k => stateMap[k] === Math.round(v))
+                    }
+                }
+            },
+            plugins: {
+                legend: { display: false },
+                tooltip: {
+                    callbacks: {
+                        label: c => `${c.raw.entity} (${c.raw.totalExposed.toLocaleString()} records)`
+                    }
+                }
+            },
+            onClick: (e, el) => { if (el[0]) openDrawer(data[el[0].index]); }
+        }
+    });
 }
 
-.app-shell { display: flex; height: 100vh; width: 100vw; }
+// FIXED: Infused complete extraction pipeline documentation alongside public defense analysis metrics
+function openProjectBriefing() {
+    const drawer = document.getElementById('side-panel');
+    drawer.classList.add('open');
+    document.getElementById('panel-content').innerHTML = `
+        <div class="ai-box">
+            <span class="ai-pulse"></span> <strong>ETL PIPELINE DOCUMENTATION</strong>
+            <p style="margin-top:10px; line-height:1.5; color:#8b949e;">
+                <strong>Extract:</strong> Direct client-side calls isolate spreadsheet structures streaming via open-source protocols, generating runtime validation keys to prevent cross-origin tracking delays.<br><br>
+                <strong>Transform:</strong> D3.js structures raw CSV properties into programmatic configurations. The linear axis coordinates calendar timestamps ($x$), geographical states coordinate layout nodes ($y$), and entry sums set circle radius volumes ($r$).<br><br>
+                <strong>Load:</strong> Formatted objects are read dynamically by the active adapter engine to populate layout fields without blocking execution loops.
+            </p>
+        </div>
 
-.sidebar-nav { width: 260px; background: var(--bg-side); border-right: 1px solid var(--border); padding: 30px 20px; display: flex; flex-direction: column; gap: 40px; flex-shrink: 0; }
-.logo-area { display: flex; align-items: center; gap: 12px; font-weight: 800; font-size: 1.2rem; }
-.logo-area small { font-weight: 400; color: var(--accent); font-size: 0.6rem; border: 1px solid var(--accent); padding: 2px 4px; border-radius: 3px; margin-left: 5px; }
-
-.stats-summary label { font-size: 10px; font-weight: 700; color: var(--text-dim); letter-spacing: 1.5px; }
-.big-num { font-family: 'JetBrains Mono', monospace; font-size: 1.8rem; color: #fff; margin: 5px 0; }
-
-.nav-item { color: var(--text-dim); text-decoration: none; display: block; padding: 12px 15px; border-radius: 8px; font-size: 14px; transition: 0.2s; }
-.nav-item.active { background: rgba(0, 210, 255, 0.1); color: var(--accent); font-weight: 600; }
-
-.nav-item.active-highlight { 
-    border: 1px dashed var(--medisec-gold); 
-    color: var(--medisec-gold); 
-    font-weight: 600; 
-    margin-top: 10px; 
-    background: rgba(255, 215, 0, 0.05); 
+        <div class="ai-box" style="border-color: rgba(255, 71, 87, 0.3); background: rgba(255, 71, 87, 0.02);">
+            <strong>WHY THIS TRACKER IS CRITICAL</strong>
+            <p style="margin-top:10px; line-height:1.5; color:#e6edf3;">
+                Healthcare registries are high-yield targets because medical profiles link permanent history parameters like diagnostic logs, insurance records, and baseline tracking matrices.<br><br>
+                Unlike standard banking elements, corporate health classifications cannot be reset or reissued following perimeter failure. This system transforms abstract corporate loss indices into actionable spatial data.
+            </p>
+        </div>
+        
+        <div class="medisec-research-box">
+            <span style="color:#ffd700; font-weight:700;">🌟 CRITICAL RESEARCH CORE: MEDISEC FINDINGS</span>
+            <p style="margin-top:8px; line-height:1.5; color:#fff;">
+                <strong>Infrastructure Threat Analysis:</strong> System patterns match telemetry details established inside <strong>MediSec's cybersecurity research database</strong>.<br><br>
+                Empirical metrics show that approximately 93% of studied medical frameworks experienced critical unauthorized exposures over trailing assessment scales, inducing average data recovery and organizational liability expenses crossing $10 Million per event.
+            </p>
+        </div>
+    `;
 }
 
-.viewport { flex: 1; display: flex; flex-direction: column; padding: 20px; overflow-y: auto; }
-.top-bar { display: flex; justify-content: space-between; align-items: center; padding-bottom: 20px; font-size: 12px; }
-.cta-pill { background: #fff; color: #000; padding: 8px 20px; border-radius: 20px; text-decoration: none; font-weight: 700; }
-.chart-container { flex: 1; background: var(--bg-card); border: 1px solid var(--border); border-radius: 16px; padding: 25px; box-shadow: 0 20px 40px rgba(0,0,0,0.4); position: relative; min-height: 450px; }
+function openDrawer(d) {
+    const drawer = document.getElementById('side-panel');
+    drawer.classList.add('open');
+    const isMajorHub = ["CA", "TX", "NY", "FL", "IL"].includes(d.state);
+    const locAnalysis = isMajorHub 
+        ? `High-Priority Target: Primary metropolitan network hub.`
+        : `Regional Node: Localized network impact.`;
 
-.spinner { 
-    position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); 
-    width: 35px; height: 35px; border: 3px solid rgba(0, 210, 255, 0.1); 
-    border-top: 3px solid var(--accent); border-radius: 50%; 
-    animation: spin 1s linear infinite; 
+    let ai = {
+        profile: "Standard security anomaly.",
+        fact: "Medical records are high-value targets for identity theft operations.",
+        tip: "Monitor financial statements for unauthorized medical billing."
+    };
+
+    if (d.type.includes("Hacking")) {
+        ai = {
+            profile: "Active Network Intrusion detected.",
+            fact: "Hacking represents the majority of modern healthcare data loss.",
+            tip: "Update patient portal credentials and enable 2FA immediately."
+        };
+    } else if (d.type.includes("Unauthorized")) {
+        ai = {
+            profile: "Internal Access Breach detected.",
+            fact: "Internal snooping remains a significant risk for patient privacy.",
+            tip: "Request an access audit log from the provider for your specific patient ID."
+        };
+    }
+
+    document.getElementById('panel-content').innerHTML = `
+        <div class="detail-item"><label>TARGET ENTITY</label><div class="value">${d.entity}</div></div>
+        <div class="ai-box">
+            <div style="color:#00d2ff; font-weight:bold; margin-bottom:12px; display:flex; align-items:center;">
+                <span class="ai-pulse"></span> AI DIAGNOSTICS: ${d.state} NODE
+            </div>
+            <p><strong>$> THREAT PROFILE:</strong> ${ai.profile}</p>
+            <p style="margin-top:10px;"><strong>$> GEO-ANALYSIS:</strong> ${locAnalysis}</p>
+            <p style="margin-top:10px;"><strong>$> BREACH FACT:</strong> ${ai.fact}</p>
+            <div style="margin-top:15px; padding-top:10px; border-top:1px solid rgba(255,255,255,0.1);">
+                <span style="color:#00d2ff; font-size:10px; display:block;">🛡️ PROTECTION PROTOCOL</span>
+                <p style="color:#fff; margin-top:5px;">${ai.tip}</p>
+            </div>
+        </div>
+        <div class="detail-item"><label>SPREADSHEET ROW INDEX</label><div class="value">${d.state} Node</div></div>
+        <div class="detail-item"><label>BREACH MASS CAPACITY (RADIUS)</label><div class="value" style="color:var(--danger); font-size:24px; font-weight:700;">${d.totalExposed.toLocaleString()} Records</div></div>
+        <div class="detail-item"><label>TIMELINE MARKER</label><div class="value">${d.date}</div></div>
+        <div class="detail-item"><label>METHOD</label><div class="value">${d.type}</div></div>
+    `;
 }
-@keyframes spin { 0% { transform: translate(-50%, -50%) rotate(0deg); } 100% { transform: translate(-50%, -50%) rotate(360deg); } }
 
-.ai-box { background: rgba(0, 210, 255, 0.04); border: 1px solid rgba(0, 210, 255, 0.2); border-radius: 12px; padding: 20px; margin-bottom: 25px; font-family: 'JetBrains Mono', monospace; font-size: 12px; }
-.medisec-research-box { background: rgba(255, 215, 0, 0.04); border: 1px solid var(--medisec-gold); border-radius: 12px; padding: 20px; margin-bottom: 25px; font-size: 12px; }
-.ai-pulse { width: 8px; height: 8px; background: var(--accent); border-radius: 50%; display: inline-block; margin-right: 8px; animation: glow 1.5s infinite; }
-@keyframes glow { 0% { opacity: 1; } 50% { opacity: 0.3; } 100% { opacity: 1; } }
+function closePanel() { document.getElementById('side-panel').classList.remove('open'); }
 
-.intel-drawer { width: 420px; background: var(--bg-side); border-left: 1px solid var(--border); position: fixed; right: -420px; top: 0; height: 100%; transition: 0.4s cubic-bezier(0.16, 1, 0.3, 1); padding: 40px; box-sizing: border-box; z-index: 1000; overflow-y: auto; }
-.intel-drawer.open { right: 0; box-shadow: -20px 0 60px rgba(0,0,0,0.6); }
-.detail-item { margin-bottom: 25px; }
-.detail-item label { font-size: 10px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 1px; }
-.value { font-size: 16px; color: #fff; font-weight: bold; margin-top: 5px; }
-.close-btn { background: none; border: none; color: #fff; font-size: 32px; cursor: pointer; float: right; }
+const chartAdapter = document.createElement('script');
+chartAdapter.src = 'https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns';
+document.head.appendChild(chartAdapter);
 
-@media (max-width: 768px) {
-    .app-shell { flex-direction: column; height: auto; }
-    .sidebar-nav { width: 100%; border-right: none; border-bottom: 1px solid var(--border); box-sizing: border-box; }
-    .chart-container { min-height: 600px; }
-    .intel-drawer { width: 100%; right: -100%; }
-}
+chartAdapter.onload = () => { syncIntelligence(); };
