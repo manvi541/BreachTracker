@@ -1,17 +1,3 @@
-The script is stopping because your `stateMap` variable has an exact duplicate key inside of it (`"OH":35, "OH":35`).
-
-In modern rendering environments and strict JavaScript engines, repeating an identical key-value pair inside an inline dictionary literal can throw a silent compilation error or break string evaluation loops mid-transit, crashing the parsing stage.
-
-Additionally, looking closely at your sheet URL:
-`https://docs.google.com/spreadsheets/d/e/.../pub?output=csv`
-
-If you are calling `fetch()` and appending `&t=TIMESTAMP` to a URL that *ends* with `?output=csv`, the URL string gets malformed into `?output=csv&t=12345678`, which Google's servers can reject as a bad request parameter, breaking the data stream.
-
-Here is your fully corrected, robust `script.js` file with the duplicate entry removed, safe URL parameter concatenation, and a fallback console logger to tell you exactly where an issue lies.
-
-### The Fixed `script.js`
-
-```javascript
 // Fixed: Swapped trailing parameters so cache busting appends safely without corrupting the query string
 const CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTJL_YexPfz5paonO8NbvONGHkbgUO4bEuQI1qZDSRxWv3cvwqVoUNhOzfThkiegwnwLOkYM3Z2tlZ7/pub?gid=0&single=true&output=csv';
 
@@ -213,5 +199,3 @@ function openDrawer(d) {
 function closePanel() { document.getElementById('side-panel').classList.remove('open'); }
 
 syncIntelligence();
-
-```
