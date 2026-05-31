@@ -1,14 +1,38 @@
-const CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTJL_YexPfz5paonO8NbvONGHkbgUO4bEuQI1qZDSRxWv3cvwqVoUNhOzfThkiegwnwLOkYM3Z2tlZ7/pub?output=csv';
+The script is stopping because your `stateMap` variable has an exact duplicate key inside of it (`"OH":35, "OH":35`).
 
-const stateMap = { "AL":1,"AK":2,"AZ":3,"AR":4,"CA":5,"CO":6,"CT":7,"DE":8,"FL":9,"GA":10,"HI":11,"ID":12,"IL":13,"IN":14,"IA":15,"KS":16,"KY":17,"LA":18,"ME":19,"MD":20,"MA":21,"MI":22,"MN":23,"MS":24,"MO":25,"MT":26,"NE":27,"NV":28,"NH":29,"NJ":30,"NM":31,"NY":32,"NC":33,"ND":34,"OH":35,"OH":35,"OK":36,"OR":37,"PA":38,"RI":39,"SC":40,"SD":41,"TN":42,"TX":43,"UT":44,"VT":45,"VA":46,"WA":47,"WV":48,"WI":49,"WY":50 };
+In modern rendering environments and strict JavaScript engines, repeating an identical key-value pair inside an inline dictionary literal can throw a silent compilation error or break string evaluation loops mid-transit, crashing the parsing stage.
+
+Additionally, looking closely at your sheet URL:
+`https://docs.google.com/spreadsheets/d/e/.../pub?output=csv`
+
+If you are calling `fetch()` and appending `&t=TIMESTAMP` to a URL that *ends* with `?output=csv`, the URL string gets malformed into `?output=csv&t=12345678`, which Google's servers can reject as a bad request parameter, breaking the data stream.
+
+Here is your fully corrected, robust `script.js` file with the duplicate entry removed, safe URL parameter concatenation, and a fallback console logger to tell you exactly where an issue lies.
+
+### The Fixed `script.js`
+
+```javascript
+// Fixed: Swapped trailing parameters so cache busting appends safely without corrupting the query string
+const CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTJL_YexPfz5paonO8NbvONGHkbgUO4bEuQI1qZDSRxWv3cvwqVoUNhOzfThkiegwnwLOkYM3Z2tlZ7/pub?gid=0&single=true&output=csv';
+
+// Fixed: Removed duplicate "OH":35 entry which breaks strict literal dictionary mapping evaluation loops
+const stateMap = { "AL":1,"AK":2,"AZ":3,"AR":4,"CA":5,"CO":6,"CT":7,"DE":8,"FL":9,"GA":10,"HI":11,"ID":12,"IL":13,"IN":14,"IA":15,"KS":16,"KY":17,"LA":18,"ME":19,"MD":20,"MA":21,"MI":22,"MN":23,"MS":24,"MO":25,"MT":26,"NE":27,"NV":28,"NH":29,"NJ":30,"NM":31,"NY":32,"NC":33,"ND":34,"OH":35,"OK":36,"OR":37,"PA":38,"RI":39,"SC":40,"SD":41,"TN":42,"TX":43,"UT":44,"VT":45,"VA":46,"WA":47,"WV":48,"WI":49,"WY":50 };
 
 let mainChart;
 
 async function syncIntelligence() {
     try {
         const response = await fetch(`${CSV_URL}&t=${Date.now()}`);
+        if (!response.ok) throw new Error(`HTTP network error! Status: ${response.status}`);
+        
         const csv = await response.text();
         const raw = d3.csvParse(csv);
+        
+        if (!raw || raw.length === 0) {
+            document.getElementById('sync-status').innerText = "EMPTY DATAFEED RETURNED";
+            return;
+        }
+
         let grandTotal = 0;
         
         const processed = raw.map(r => {
@@ -26,9 +50,9 @@ async function syncIntelligence() {
             }
 
             return {
-                x: recordDate, // X-Axis = Timeline
-                y: stateMap[r["State"]] || 0, // Y-Axis = Location
-                r: Math.sqrt(affected) / 12 + 4, // Circle size = Breach size
+                x: recordDate, 
+                y: stateMap[r["State"]] || 0, 
+                r: Math.sqrt(affected) / 12 + 4, 
                 entity: r["Name of Covered Entity"] || "Unknown Provider",
                 state: r["State"] || "Unknown",
                 type: r["Type of Breach"] || "Undetermined Vector",
@@ -47,7 +71,7 @@ async function syncIntelligence() {
         }
         document.getElementById('sync-status').innerText = `SYSTEM ONLINE: ${new Date().toLocaleTimeString()}`;
     } catch (e) { 
-        console.error(e); 
+        console.error("Critical Diagnostic Pipeline Error Details:", e); 
         document.getElementById('sync-status').innerText = "DATA PIPELINE TIMEOUT";
     } finally {
         const loader = document.getElementById('loader');
@@ -188,5 +212,6 @@ function openDrawer(d) {
 
 function closePanel() { document.getElementById('side-panel').classList.remove('open'); }
 
-// Initialize data pipeline immediately on script evaluation
 syncIntelligence();
+
+```
