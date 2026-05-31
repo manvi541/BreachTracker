@@ -19,11 +19,13 @@
             <div class="stats-summary">
                 <label>GLOBAL IMPACT</label>
                 <div id="total-affected" class="big-num">---</div>
-                <p>Total Records Exposed</p>
+                <p style="margin: 5px 0 0 0; font-size: 11px; color: var(--text-dim);">
+                    Total Records Exposed since tracking milestone (Jan 1, 2025)
+                </p>
             </div>
             <nav class="side-links">
                 <a href="#" class="nav-item active">Breach Radar</a>
-                <a href="https://medisecproject.org/#projects" target="_blank" class="nav-item">Stay informed! Read about cybersecurity's role in healthcare now.</a>
+                <a href="https://medisecproject.org/#projects" target="_blank" class="nav-item active-highlight">Stay informed! Read about cybersecurity's role in healthcare now.</a>
             </nav>
         </aside>
 
@@ -36,6 +38,7 @@
             </header>
             
             <div class="chart-container">
+                <div id="loader" class="spinner"></div>
                 <canvas id="breachChart"></canvas>
             </div>
         </main>
@@ -45,8 +48,7 @@
                 <button class="close-btn" onclick="closePanel()">×</button>
                 <h2 style="margin-top: 10px;">TERMINAL DATA</h2>
             </div>
-            <div id="panel-content" class="drawer-body">
-                </div>
+            <div id="panel-content" class="drawer-body"></div>
         </div>
     </div>
     <script src="script.js"></script>
