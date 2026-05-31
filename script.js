@@ -1,4 +1,3 @@
-// FIXED: This is the exact raw export endpoint string structure for your specific dataset
 const CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTJL_YexPfz5paonO8NbvONGHkbgUO4bEuQI1qZDSRxWv3cvwqVoUNhOzfThkiegwnwLOkYM3Z2tlZ7/pub?gid=0&single=true&output=csv';
 
 const stateMap = { "AL":1,"AK":2,"AZ":3,"AR":4,"CA":5,"CO":6,"CT":7,"DE":8,"FL":9,"GA":10,"HI":11,"ID":12,"IL":13,"IN":14,"IA":15,"KS":16,"KY":17,"LA":18,"ME":19,"MD":20,"MA":21,"MI":22,"MN":23,"MS":24,"MO":25,"MT":26,"NE":27,"NV":28,"NH":29,"NJ":30,"NM":31,"NY":32,"NC":33,"ND":34,"OH":35,"OK":36,"OR":37,"PA":38,"RI":39,"SC":40,"SD":41,"TN":42,"TX":43,"UT":44,"VT":45,"VA":46,"WA":47,"WV":48,"WI":49,"WY":50 };
@@ -7,28 +6,31 @@ let mainChart;
 
 async function syncIntelligence() {
     try {
-        // FIXED: Cache-busting parameter now safely appends to the verified layout endpoint URL
         const response = await fetch(`${CSV_URL}&nocache=${Date.now()}`);
-        if (!response.ok) throw new Error(`Network connection fault: ${response.status}`);
+        if (!response.ok) throw new Error(`Network fault: ${response.status}`);
         
         const csv = await response.text();
         const raw = d3.csvParse(csv);
         
+        // FIXED: Handle empty sheets gracefully during formula reload states
         if (!raw || raw.length === 0) {
-            document.getElementById('sync-status').innerText = "ZERO DATA STREAMS RETURNED";
+            document.getElementById('sync-status').innerText = "SHEET LOADING... RETRYING";
             return;
         }
 
         let grandTotal = 0;
-        
-        const processed = raw.map(r => {
+        const processed = [];
+
+        for (const r of raw) {
+            // FIXED: Guard against undefined or shifted columns
+            if (!r || !r["State"] || !r["Breach Submission Date"]) continue;
+
             const affected = parseInt(r["Individuals Affected"]) || 0;
             grandTotal += affected;
 
-            let rawDateStr = r["Breach Submission Date"] || "";
+            let rawDateStr = r["Breach Submission Date"].trim();
             let recordDate = new Date(rawDateStr);
             
-            // Comprehensive date adapter fallback to read variations of string shapes cleanly
             if (isNaN(recordDate.getTime()) && rawDateStr.includes('/')) {
                 const parts = rawDateStr.split('/');
                 if (parts.length === 3) {
@@ -36,31 +38,36 @@ async function syncIntelligence() {
                 }
             }
 
-            return {
+            // Skip this specific row if the date failed to parse, instead of crashing the whole app
+            if (isNaN(recordDate.getTime())) continue;
+
+            processed.push({
                 x: recordDate, 
-                y: stateMap[r["State"]] || 0, 
-                r: Math.sqrt(affected) / 12 + 5, // Responsive mass multiplier for dot sizing
+                y: stateMap[r["State"].trim().toUpperCase()] || 0, 
+                r: Math.sqrt(affected) / 12 + 5, 
                 entity: r["Name of Covered Entity"] || "Unknown Provider",
                 state: r["State"] || "Unknown",
                 type: r["Type of Breach"] || "Undetermined Vector",
                 date: rawDateStr,
                 totalExposed: affected
-            };
-        }).filter(d => d.y > 0 && !isNaN(d.x.getTime())); // Erases layout anomalies completely
+            });
+        }
 
-        // Update the absolute Global Metric box in the view layer
+        // Clean out any mapped data points assigned to invalid fallback states
+        const filteredData = processed.filter(d => d.y > 0);
+
         document.getElementById('total-affected').innerText = grandTotal.toLocaleString();
 
         if (mainChart) {
-            mainChart.data.datasets[0].data = processed;
+            mainChart.data.datasets[0].data = filteredData;
             mainChart.update();
         } else {
-            initChart(processed);
+            initChart(filteredData);
         }
         document.getElementById('sync-status').innerText = `SYSTEM ONLINE: ${new Date().toLocaleTimeString()}`;
     } catch (e) { 
-        console.error("ETL Operational Stream Failure:", e); 
-        document.getElementById('sync-status').innerText = "DATA PIPELINE DISCONNECTED";
+        console.error("Pipeline breakdown caught safely:", e); 
+        document.getElementById('sync-status').innerText = "DATA PIPELINE DISCONNECTED (RETRYING...)";
     } finally {
         const loader = document.getElementById('loader');
         if (loader) loader.style.display = 'none';
@@ -89,10 +96,7 @@ function initChart(data) {
             scales: {
                 x: {
                     type: 'time',
-                    time: { 
-                        unit: 'month', 
-                        displayFormats: { month: 'MMM YYYY' } 
-                    },
+                    time: { unit: 'month', displayFormats: { month: 'MMM YYYY' } },
                     grid: { color: 'rgba(255,255,255,0.02)' },
                     ticks: { color: '#777', font: { family: 'JetBrains Mono', size: 10 } }
                 },
@@ -129,11 +133,10 @@ function openProjectBriefing() {
             <span class="ai-pulse"></span> <strong>ETL PIPELINE DOCUMENTATION</strong>
             <p style="margin-top:10px; line-height:1.5; color:#8b949e;">
                 <strong>Extract:</strong> Direct client-side fetch streams isolate raw CSV rows from your cloud layout configuration while applying cache parameters to avoid network lag.<br><br>
-                <strong>Transform:</strong> D3 conversions map strings into structured graph values. Calendar inputs structure horizontal time coordinates ($x$), territorial boundaries designate row placements ($y$), and cumulative sizes determine bubble radii ($r$).<br><br>
+                <strong>Transform:</strong> D3 conversions map strings into structured graph values. Calendar inputs structure horizontal time coordinates (x), territorial boundaries designate row placements (y), and cumulative sizes determine bubble radii (r).<br><br>
                 <strong>Load:</strong> Renders target data configurations directly inside modern HTML5 Chart layouts natively.
             </p>
         </div>
-
         <div class="ai-box" style="border-color: rgba(255, 71, 87, 0.3); background: rgba(255, 71, 87, 0.02);">
             <strong>WHY THIS TRACKER IS CRITICAL</strong>
             <p style="margin-top:10px; line-height:1.5; color:#e6edf3;">
@@ -141,7 +144,6 @@ function openProjectBriefing() {
                 Unlike basic compromised credit profiles, foundational healthcare identifiers can never be re-issued following security architecture failures. This platform charts corporate risk visibility in near real-time.
             </p>
         </div>
-        
         <div class="medisec-research-box">
             <span style="color:#ffd700; font-weight:700;">🌟 CRITICAL RESEARCH CORE: MEDISEC FINDINGS</span>
             <p style="margin-top:8px; line-height:1.5; color:#fff;">
@@ -156,9 +158,7 @@ function openDrawer(d) {
     const drawer = document.getElementById('side-panel');
     drawer.classList.add('open');
     const isMajorHub = ["CA", "TX", "NY", "FL", "IL"].includes(d.state);
-    const locAnalysis = isMajorHub 
-        ? `High-Priority Target: Primary metropolitan network hub.`
-        : `Regional Node: Localized network impact.`;
+    const locAnalysis = isMajorHub ? `High-Priority Target: Primary metropolitan network hub.` : `Regional Node: Localized network impact.`;
 
     let ai = {
         profile: "Standard security anomaly.",
@@ -167,17 +167,9 @@ function openDrawer(d) {
     };
 
     if (d.type.includes("Hacking")) {
-        ai = {
-            profile: "Active Network Intrusion detected.",
-            fact: "Hacking represents the majority of modern healthcare data loss.",
-            tip: "Update patient portal credentials and enable 2FA immediately."
-        };
+        ai = { profile: "Active Network Intrusion detected.", fact: "Hacking represents the majority of modern healthcare data loss.", tip: "Update patient portal credentials and enable 2FA immediately." };
     } else if (d.type.includes("Unauthorized")) {
-        ai = {
-            profile: "Internal Access Breach detected.",
-            fact: "Internal snooping remains a significant risk for patient privacy.",
-            tip: "Request an access audit log from the provider for your specific patient ID."
-        };
+        ai = { profile: "Internal Access Breach detected.", fact: "Internal snooping remains a significant risk for patient privacy.", tip: "Request an access audit log from the provider for your specific patient ID." };
     }
 
     document.getElementById('panel-content').innerHTML = `
@@ -203,5 +195,6 @@ function openDrawer(d) {
 
 function closePanel() { document.getElementById('side-panel').classList.remove('open'); }
 
-// Run pipeline stream immediately
+// Setup an auto-retry loop every 15 seconds to gracefully handle formula reloads
+setInterval(syncIntelligence, 15000);
 syncIntelligence();
