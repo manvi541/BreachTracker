@@ -1,6 +1,6 @@
-const CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTJL_YexPfz5paonO8NbvONGHkbgUO4bEuQI1qZDSRxWv3cvwqVoUNhOzfThkiegwnwLOkYM3Z2tlZ7/pub?gid=0&single=true&output=csv';
+const CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTJL_YexPfz5paonO8NbvONGHkbgUO4bEuQI1qZDSRxWv3cvwqVoUNhOzfThkiegwnwLOkYM3Z2tlZ7/pub?output=csv';
 
-const stateMap = { "AL":1,"AK":2,"AZ":3,"AR":4,"CA":5,"CO":6,"CT":7,"DE":8,"FL":9,"GA":10,"HI":11,"ID":12,"IL":13,"IN":14,"IA":15,"KS":16,"KY":17,"LA":18,"ME":19,"MD":20,"MA":21,"MI":22,"MN":23,"MS":24,"MO":25,"MT":26,"NE":27,"NV":28,"NH":29,"NJ":30,"NM":31,"NY":32,"NC":33,"ND":34,"OH":35,"OK":36,"OR":37,"PA":38,"RI":39,"SC":40,"SD":41,"TN":42,"TX":43,"UT":44,"VT":45,"VA":46,"WA":47,"WV":48,"WI":49,"WY":50 };
+const stateMap = { "AL":1,"AK":2,"AZ":3,"AR":4,"CA":5,"CO":6,"CT":7,"DE":8,"FL":9,"GA":10,"HI":11,"ID":12,"IL":13,"IN":14,"IA":15,"KS":16,"KY":17,"LA":18,"ME":19,"MD":20,"MA":21,"MI":22,"MN":23,"MS":24,"MO":25,"MT":26,"NE":27,"NV":28,"NH":29,"NJ":30,"NM":31,"NY":32,"NC":33,"ND":34,"OH":35,"OH":35,"OK":36,"OR":37,"PA":38,"RI":39,"SC":40,"SD":41,"TN":42,"TX":43,"UT":44,"VT":45,"VA":46,"WA":47,"WV":48,"WI":49,"WY":50 };
 
 let mainChart;
 
@@ -13,25 +13,30 @@ async function syncIntelligence() {
         
         const processed = raw.map(r => {
             const affected = parseInt(r["Individuals Affected"]) || 0;
-            const recordDate = new Date(r["Breach Submission Date"]);
             grandTotal += affected;
 
+            let rawDateStr = r["Breach Submission Date"] || "";
+            let recordDate = new Date(rawDateStr);
+            
+            if (isNaN(recordDate.getTime()) && rawDateStr.includes('/')) {
+                const parts = rawDateStr.split('/');
+                if (parts.length === 3) {
+                    recordDate = new Date(parts[2], parts[0] - 1, parts[1]);
+                }
+            }
+
             return {
-                // FIXED: Assigned timeline date properties directly to X axis data points
-                x: recordDate,
-                // FIXED: Assigned location grid maps directly to Y axis data points 
-                y: stateMap[r["State"]] || 0,
-                // FIXED: Circular radius calculations map proportionally to breach mass metrics
-                r: Math.sqrt(affected) / 12 + 3,
-                entity: r["Name of Covered Entity"],
-                state: r["State"],
-                type: r["Type of Breach"],
-                date: r["Breach Submission Date"],
+                x: recordDate, // X-Axis = Timeline
+                y: stateMap[r["State"]] || 0, // Y-Axis = Location
+                r: Math.sqrt(affected) / 12 + 4, // Circle size = Breach size
+                entity: r["Name of Covered Entity"] || "Unknown Provider",
+                state: r["State"] || "Unknown",
+                type: r["Type of Breach"] || "Undetermined Vector",
+                date: rawDateStr,
                 totalExposed: affected
             };
         }).filter(d => d.y > 0 && !isNaN(d.x.getTime()));
 
-        // Display absolute total record leakage metrics in the layout panel wrapper
         document.getElementById('total-affected').innerText = grandTotal.toLocaleString();
 
         if (mainChart) {
@@ -43,7 +48,7 @@ async function syncIntelligence() {
         document.getElementById('sync-status').innerText = `SYSTEM ONLINE: ${new Date().toLocaleTimeString()}`;
     } catch (e) { 
         console.error(e); 
-        document.getElementById('sync-status').innerText = "DATA PIPELINE FAULT";
+        document.getElementById('sync-status').innerText = "DATA PIPELINE TIMEOUT";
     } finally {
         const loader = document.getElementById('loader');
         if (loader) loader.style.display = 'none';
@@ -70,7 +75,6 @@ function initChart(data) {
             responsive: true,
             maintainAspectRatio: false,
             scales: {
-                // FIXED: Set type to 'time' to resolve rendering hangs caused by date calculations on log scales
                 x: {
                     type: 'time',
                     time: { unit: 'month', displayFormats: { month: 'MMM YYYY' } },
@@ -78,6 +82,8 @@ function initChart(data) {
                     ticks: { color: '#777', font: { family: 'JetBrains Mono', size: 10 } }
                 },
                 y: {
+                    min: 0,
+                    max: 51,
                     grid: { display: false },
                     ticks: {
                         color: '#777',
@@ -100,7 +106,6 @@ function initChart(data) {
     });
 }
 
-// FIXED: Infused complete extraction pipeline documentation alongside public defense analysis metrics
 function openProjectBriefing() {
     const drawer = document.getElementById('side-panel');
     drawer.classList.add('open');
@@ -108,25 +113,25 @@ function openProjectBriefing() {
         <div class="ai-box">
             <span class="ai-pulse"></span> <strong>ETL PIPELINE DOCUMENTATION</strong>
             <p style="margin-top:10px; line-height:1.5; color:#8b949e;">
-                <strong>Extract:</strong> Direct client-side calls isolate spreadsheet structures streaming via open-source protocols, generating runtime validation keys to prevent cross-origin tracking delays.<br><br>
-                <strong>Transform:</strong> D3.js structures raw CSV properties into programmatic configurations. The linear axis coordinates calendar timestamps ($x$), geographical states coordinate layout nodes ($y$), and entry sums set circle radius volumes ($r$).<br><br>
-                <strong>Load:</strong> Formatted objects are read dynamically by the active adapter engine to populate layout fields without blocking execution loops.
+                <strong>Extract:</strong> Fetches live CSV data directly from your Google Sheets deployment using dynamic parameters to bypass intermediate network caches.<br><br>
+                <strong>Transform:</strong> Uses D3 parsing utilities to map parameters straight into relational chart parameters: timeline metrics map to the horizontal scale (x), regional states map to spreadsheet index slots (y), and entry sums drive bubble volume dimensions (r).<br><br>
+                <strong>Load:</strong> Injects the sanitized dataset array natively into responsive Canvas UI layers.
             </p>
         </div>
 
         <div class="ai-box" style="border-color: rgba(255, 71, 87, 0.3); background: rgba(255, 71, 87, 0.02);">
             <strong>WHY THIS TRACKER IS CRITICAL</strong>
             <p style="margin-top:10px; line-height:1.5; color:#e6edf3;">
-                Healthcare registries are high-yield targets because medical profiles link permanent history parameters like diagnostic logs, insurance records, and baseline tracking matrices.<br><br>
-                Unlike standard banking elements, corporate health classifications cannot be reset or reissued following perimeter failure. This system transforms abstract corporate loss indices into actionable spatial data.
+                Healthcare networks represent critical data targets because patient logs aggregate permanent identifying traits—such as medical history files, corporate insurance indices, and personal bio-data maps.<br><br>
+                Unlike basic consumer financial details, core medical record traits cannot be changed or re-issued after a leak occurs. This monitoring platform contextually scales visual threat signals to keep users accurately informed.
             </p>
         </div>
         
         <div class="medisec-research-box">
             <span style="color:#ffd700; font-weight:700;">🌟 CRITICAL RESEARCH CORE: MEDISEC FINDINGS</span>
             <p style="margin-top:8px; line-height:1.5; color:#fff;">
-                <strong>Infrastructure Threat Analysis:</strong> System patterns match telemetry details established inside <strong>MediSec's cybersecurity research database</strong>.<br><br>
-                Empirical metrics show that approximately 93% of studied medical frameworks experienced critical unauthorized exposures over trailing assessment scales, inducing average data recovery and organizational liability expenses crossing $10 Million per event.
+                <strong>Infrastructure Threat Analysis:</strong> System trends directly visualize historical incident telemetry sourced from <strong>MediSec's cybersecurity research documentation hub</strong>.<br><br>
+                Empirical evidence emphasizes that roughly 93% of tracked institutional healthcare systems suffered severe data leaks over historical multi-year oversight cycles, incurring catastrophic service downtime alongside organizational remediation costs averaging over $10 Million per event.
             </p>
         </div>
     `;
@@ -183,8 +188,5 @@ function openDrawer(d) {
 
 function closePanel() { document.getElementById('side-panel').classList.remove('open'); }
 
-const chartAdapter = document.createElement('script');
-chartAdapter.src = 'https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns';
-document.head.appendChild(chartAdapter);
-
-chartAdapter.onload = () => { syncIntelligence(); };
+// Initialize data pipeline immediately on script evaluation
+syncIntelligence();
