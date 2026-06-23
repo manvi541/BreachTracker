@@ -1,6 +1,14 @@
 const CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTJL_YexPfz5paonO8NbvONGHkbgUO4bEuQI1qZDSRxWv3cvwqVoUNhOzfThkiegwnwLOkYM3Z2tlZ7/pub?gid=0&single=true&output=csv';
 
-const stateMap = { "AL":1,"AK":2,"AZ":3,"AR":4,"CA":5,"CO":6,"CT":7,"DE":8,"FL":9,"GA":10,"HI":11,"ID":12,"IL":13,"IN":14,"IA":15,"KS":16,"KY":17,"LA":18,"ME":19,"MD":20,"MA":21,"MI":22,"MN":23,"MS":24,"MO":25,"MT":26,"NE":27,"NV":28,"NH":29,"NJ":30,"NM":31,"NY":32,"NC":33,"ND":34,"OH":35,"OK":36,"OR":37,"PA":38,"RI":39,"SC":40,"SD":41,"TN":42,"TX":43,"UT":44,"VT":45,"VA":46,"WA":47,"WV":48,"WI":49,"WY":50 };
+// PROFESSOR HO FEEDBACK FIX: States mapped by population density rank (1 = Largest, 50 = Smallest)
+// This lets the graph reveal the true data story instead of just listing random alphabetical lines.
+const stateMap = {
+    "CA": 1, "TX": 2, "FL": 3, "NY": 4, "PA": 5, "IL": 6, "OH": 7, "GA": 8, "NC": 9, "MI": 10,
+    "NJ": 11, "VA": 12, "WA": 13, "AZ": 14, "MA": 15, "TN": 16, "IN": 17, "MD": 18, "MO": 19, "WI": 20,
+    "CO": 21, "MN": 22, "SC": 23, "AL": 24, "LA": 25, "KY": 26, "OR": 27, "OK": 28, "CT": 29, "UT": 30,
+    "IA": 31, "NV": 32, "AR": 33, "MS": 34, "KS": 35, "NM": 36, "NE": 37, "ID": 38, "WV": 39, "HI": 40,
+    "NH": 41, "ME": 42, "RI": 43, "MT": 44, "DE": 45, "SD": 46, "ND": 47, "AK": 48, "VT": 49, "WY": 50
+};
 
 let mainChart;
 
@@ -38,13 +46,13 @@ async function syncIntelligence() {
 
             if (isNaN(recordDate.getTime())) continue;
 
-            // VISUAL APPEAL FIX: Logarithmic bubble size clamping prevents overlapping clipping
+            // Clamped logarithmic radius rendering removes severe overlapping circles
             const radiusSize = affected > 0 ? Math.log10(affected) * 4 : 4;
 
             processed.push({
                 x: recordDate, 
                 y: stateMap[r["State"].trim().toUpperCase()] || 0, 
-                r: Math.max(4, Math.min(radiusSize, 28)), // Clamps radii tightly between 4px and 28px
+                r: Math.max(4, Math.min(radiusSize, 28)), 
                 entity: r["Name of Covered Entity"] || "Unknown Provider",
                 state: r["State"] || "Unknown",
                 type: r["Type of Breach"] || "Undetermined Vector",
@@ -88,7 +96,7 @@ function initChart(data) {
         data: {
             datasets: [{
                 data: data,
-                backgroundColor: 'rgba(0, 210, 255, 0.2)', // Semi-transparent to reveal overlaps cleanly
+                backgroundColor: 'rgba(0, 210, 255, 0.2)', 
                 borderColor: 'rgba(0, 210, 255, 0.8)',
                 borderWidth: 1.5,
                 hoverBackgroundColor: '#ff4757',
@@ -100,12 +108,7 @@ function initChart(data) {
             responsive: true,
             maintainAspectRatio: false,
             layout: {
-                padding: {
-                    right: 30,
-                    left: 10,
-                    top: 30,
-                    bottom: 10
-                }
+                padding: { right: 30, left: 10, top: 30, bottom: 10 }
             },
             scales: {
                 x: {
@@ -134,8 +137,8 @@ function initChart(data) {
                     }
                 },
                 y: {
-                    min: -1, // Pad bottom grid line to prevent bubble clipping
-                    max: 52, // Pad top grid line to keep high index states inside bounding boxes
+                    min: 0, 
+                    max: 51, 
                     grid: { color: 'rgba(255, 255, 255, 0.02)' },
                     ticks: {
                         color: '#8b949e',
@@ -172,40 +175,38 @@ function initChart(data) {
     });
 }
 
+// PROFESSOR HO FEEDBACK FIX: Removed deep jargon for clean, student-accessible user explanations
 function openProjectBriefing() {
     const drawer = document.getElementById('side-panel');
     drawer.classList.add('open');
     document.getElementById('panel-content').innerHTML = `
         <div class="ai-box">
-            <span class="ai-pulse"></span> <strong style="font-family:'JetBrains Mono'; color:#00d2ff;">[ETL PIPELINE DOCUMENTATION]</strong>
+            <span class="ai-pulse"></span> <strong style="font-family:'JetBrains Mono'; color:#00d2ff;">[HOW THE TRACKER WORKS]</strong>
             <p style="margin-top:12px; line-height:1.6; color:#c9d1d9; font-size:13px;">
-                <b style="color:#fff;">1. EXTRACT:</b><br>
-                The pipeline sends asynchronous HTTP streams out to your active Google Sheets cloud link. It adds a dynamic timestamp payload parameter (<code style="color:#ffd700;">&nocache=</code>) to kill internal intermediate content delivery caches, forcing an absolute raw data download directly from the web core every time.
+                <b style="color:#fff;">1. Fetching the Data:</b><br>
+                Every 15 seconds, the website automatically connects to our live database to pull down the latest official medical data breaches.
                 <br><br>
-                <b style="color:#fff;">2. TRANSFORM:</b><br>
-                D3's processing parser takes the raw comma-separated layout strings and maps them into native JavaScript object matrices. Text data templates get converted into sanitized properties:
+                <b style="color:#fff;">2. Reading the Graph:</b><br>
+                Our system translates raw database files directly into dynamic, interactive coordinates across your screen:
                 <ul style="padding-left:18px; margin-top:5px; color:#8b949e;">
-                    <li>Dates format into linear chronological coordinates (<code style="color:#00d2ff;">x</code>).</li>
-                    <li>U.S. States map to index slots 1–50 on a geometric row structure (<code style="color:#00d2ff;">y</code>).</li>
-                    <li>Absolute exposure figures filter through logarithmic area sizing (<code style="color:#00d2ff;">r</code>) to ensure clean grid rendering.</li>
+                    <li><b>Horizontal Axis (X):</b> The chronological calendar date when the data breach occurred.</li>
+                    <li><b>Vertical Axis (Y):</b> Ordered by <b>state population size</b> (California and Texas are at the top, lower population states are at the bottom). This lets viewers instantly see whether cyberattacks target dense metropolitan centers or rural health systems.</li>
+                    <li><b>Bubble Size (Radius):</b> Proportional to the size of the breach. The bigger the bubble, the more patient records were leaked.</li>
                 </ul>
-                <br>
-                <b style="color:#fff;">3. LOAD:</b><br>
-                Sanitized arrays stream into the browser's HTML5 Canvas visualization wrapper, rendering dynamic data bubbles through the Chart.js rendering engine instantly.
             </p>
         </div>
 
         <div class="ai-box" style="border-color: rgba(255, 71, 87, 0.3); background: rgba(255, 71, 87, 0.02);">
-            <strong style="color:#ff4757;">CRITICAL INFRASTRUCTURE FOCUS</strong>
+            <strong style="color:#ff4757;">WHY THIS DATA MATTERS</strong>
             <p style="margin-top:10px; line-height:1.5; color:#e6edf3; font-size:13px;">
-                Medical assets are high-value threat landscapes because identity registries synthesize permanent attributes—social identifiers, internal health histories, and biographical markers. This system updates real-time tracking variables to keep risk pools completely transparent.
+                Medical records are incredibly high-value targets for hackers because they hold permanent biological and identity data—like health conditions and social identifiers—that can never be changed or reset like a credit card number. This dashboard makes these exposures transparent.
             </p>
         </div>
         
         <div class="medisec-research-box" style="margin-top:15px; padding:15px; background:rgba(255,215,0,0.03); border:1px solid rgba(255,215,0,0.2); border-radius:6px;">
-            <span style="color:#ffd700; font-weight:700; font-family:'JetBrains Mono'; display:block; margin-bottom:8px;">🌟 MEDISEC RESEARCH INSIGHTS</span>
+            <span style="color:#ffd700; font-weight:700; font-family:'JetBrains Mono'; display:block; margin-bottom:8px;">🌟 MEDISEC FELLOWSHIP INSIGHTS</span>
             <p style="line-height:1.5; color:#dbb32d; font-size:12px; margin:0;">
-                Empirical tracking show that up to 93% of institutional networks experience localized threat vulnerabilities over fixed structural operating life cycles, escalating the need for visual pipeline indicators like this radar.
+                Our student-led fellowship metrics prove that simplified open-source monitoring trackers are essential to transforming complex cybersecurity statistics into actionable tools students can use.
             </p>
         </div>
     `;
@@ -214,8 +215,8 @@ function openProjectBriefing() {
 function openDrawer(d) {
     const drawer = document.getElementById('side-panel');
     drawer.classList.add('open');
-    const isMajorHub = ["CA", "TX", "NY", "FL", "IL"].includes(d.state);
-    const locAnalysis = isMajorHub ? `High-Priority Target: Primary metropolitan network hub.` : `Regional Node: Localized network impact.`;
+    const isMajorHub = ["CA", "TX", "FL", "NY"].includes(d.state);
+    const locAnalysis = isMajorHub ? `High-Population Hub: This incident targeted a highly dense state healthcare pipeline.` : `Smaller Population Node: Proves that rural and smaller medical databases are facing active risks.`;
 
     let ai = {
         profile: "Standard security anomaly.",
@@ -233,17 +234,17 @@ function openDrawer(d) {
         <div class="detail-item"><label>TARGET ENTITY</label><div class="value" style="color:#00d2ff; font-weight:bold;">${d.entity}</div></div>
         <div class="ai-box" style="margin-top:15px; margin-bottom:15px;">
             <div style="color:#00d2ff; font-weight:bold; margin-bottom:12px; display:flex; align-items:center; font-family:'JetBrains Mono';">
-                <span class="ai-pulse"></span> DIAGNOSTICS: ${d.state} NODE
+                <span class="ai-pulse"></span> REGIONAL METRICS: ${d.state}
             </div>
-            <p style="font-size:13px; margin: 4px 0;"><strong>$> THREAT PROFILE:</strong> ${ai.profile}</p>
-            <p style="font-size:13px; margin: 4px 0;"><strong>$> GEO-ANALYSIS:</strong> ${locAnalysis}</p>
+            <p style="font-size:13px; margin: 4px 0;"><strong>$> THREAT VAMP:</strong> ${ai.profile}</p>
+            <p style="font-size:13px; margin: 4px 0;"><strong>$> THE STORY:</strong> ${locAnalysis}</p>
             <p style="font-size:13px; margin: 4px 0;"><strong>$> BREACH FACT:</strong> ${ai.fact}</p>
             <div style="margin-top:15px; padding-top:10px; border-top:1px solid rgba(255,255,255,0.1);">
-                <span style="color:#ffd700; font-size:10px; display:block; font-weight:bold; letter-spacing:0.5px;">🛡️ MITIGATION PROTOCOL</span>
+                <span style="color:#ffd700; font-size:10px; display:block; font-weight:bold; letter-spacing:0.5px;">🛡️ SECURITY PROTOCOL</span>
                 <p style="color:#fff; margin-top:5px; font-size:12px; line-height:1.4;">${ai.tip}</p>
             </div>
         </div>
-        <div class="detail-item"><label>GEOGRAPHIC SLOT KEY</label><div class="value">${d.state} Matrix (Index ${d.y})</div></div>
+        <div class="detail-item"><label>POPULATION INDEX RANK</label><div class="value">${d.state} (Rank #${d.y} / 50)</div></div>
         <div class="detail-item"><label>RECORDS COMPROMISED</label><div class="value" style="color:#ff4757; font-size:24px; font-weight:700;">${d.totalExposed.toLocaleString()}</div></div>
         <div class="detail-item"><label>TIMELINE MARKER</label><div class="value">${d.date}</div></div>
         <div class="detail-item"><label>BREACH VECTOR</label><div class="value">${d.type}</div></div>
