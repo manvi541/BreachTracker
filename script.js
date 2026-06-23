@@ -175,7 +175,7 @@ function initChart(data) {
     });
 }
 
-// PROFESSOR HO FEEDBACK FIX: Removed deep jargon for clean, student-accessible user explanations
+// PROFESSOR HO FEEDBACK FIX: Removed deep jargon, added clean student-accessible explanations and ETL meaning!
 function openProjectBriefing() {
     const drawer = document.getElementById('side-panel');
     drawer.classList.add('open');
@@ -200,6 +200,17 @@ function openProjectBriefing() {
             <strong style="color:#ff4757;">WHY THIS DATA MATTERS</strong>
             <p style="margin-top:10px; line-height:1.5; color:#e6edf3; font-size:13px;">
                 Medical records are incredibly high-value targets for hackers because they hold permanent biological and identity data—like health conditions and social identifiers—that can never be changed or reset like a credit card number. This dashboard makes these exposures transparent.
+            </p>
+        </div>
+        
+        <div class="ai-box" style="border-color: rgba(0, 210, 255, 0.3); background: rgba(0, 210, 255, 0.01);">
+            <strong style="color:#00d2ff; font-family:'JetBrains Mono';">⚙️ WHAT IS AN "ETL" PIPELINE?</strong>
+            <p style="margin-top:10px; line-height:1.6; color:#c9d1d9; font-size:12px;">
+                This tracker runs on a backend data engineering concept called <b>ETL (Extract, Transform, Load)</b>:
+                <br><br>
+                • <b>Extract:</b> The code reaches out and grabs the raw, messy text data from our live database spreadsheet.<br>
+                • <b>Transform:</b> It cleans up the files, calculates the logarithmic math to scale the bubble sizes, and converts calendar dates into timeline coordinates.<br>
+                • <b>Load:</b> It pushes that polished, newly organized information straight onto Chart.js to draw the interactive bubbles you see here.
             </p>
         </div>
         
@@ -236,7 +247,7 @@ function openDrawer(d) {
             <div style="color:#00d2ff; font-weight:bold; margin-bottom:12px; display:flex; align-items:center; font-family:'JetBrains Mono';">
                 <span class="ai-pulse"></span> REGIONAL METRICS: ${d.state}
             </div>
-            <p style="font-size:13px; margin: 4px 0;"><strong>$> THREAT VAMP:</strong> ${ai.profile}</p>
+            <p style="font-size:13px; margin: 4px 0;"><strong>$> THREAT TYPE:</strong> ${ai.profile}</p>
             <p style="font-size:13px; margin: 4px 0;"><strong>$> THE STORY:</strong> ${locAnalysis}</p>
             <p style="font-size:13px; margin: 4px 0;"><strong>$> BREACH FACT:</strong> ${ai.fact}</p>
             <div style="margin-top:15px; padding-top:10px; border-top:1px solid rgba(255,255,255,0.1);">
