@@ -1,5 +1,16 @@
+:root {
+    --bg-main: #0b0e14;
+    --bg-side: #11141b;
+    --bg-card: #161b22;
+    --accent: #00d2ff;
+    --medisec-gold: #ffd700;
+    --danger: #ff4757;
+    --text-dim: #8b949e;
+    --border: rgba(255, 255, 255, 0.05);
+}
+
 body { 
-    background: #0b0e14 !important; /* Hardcoded dark theme fallback */
+    background: #0b0e14 !important; /* Hardcoded dark theme safety fallback */
     color: #e6edf3; 
     font-family: 'Plus Jakarta Sans', sans-serif; 
     margin: 0; 
@@ -15,7 +26,7 @@ body {
 
 .sidebar-nav { 
     width: 260px; 
-    background: #11141b; /* Explicit dark panel background */
+    background: #11141b; 
     border-right: 1px solid rgba(255, 255, 255, 0.05); 
     padding: 30px 20px; 
     display: flex; 
@@ -34,7 +45,7 @@ body {
 .nav-item.active { background: rgba(0, 210, 255, 0.1); color: #00d2ff; font-weight: 600; }
 
 /* ==========================================================================
-   INTERACTIVE "READ NOW" HIGHLIGHT CARD
+   HOVER FIX: "READ NOW" INTERACTIVE LINK CARD
    ========================================================================== */
 .nav-item.active-highlight { 
     display: block;
@@ -47,7 +58,7 @@ body {
     border-radius: 8px;
     line-height: 1.4;
     text-decoration: none;
-    cursor: pointer; 
+    cursor: pointer; /* Changes mouse to clickable finger pointer icon */
     transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1); 
 }
 
@@ -55,8 +66,8 @@ body {
     background: rgba(255, 215, 0, 0.12);
     color: #ffffff;
     border: 1px solid #ffd700; 
-    transform: translateY(-2px); 
-    box-shadow: 0 6px 20px rgba(255, 215, 0, 0.1); 
+    transform: translateY(-2px); /* Physically lifts card on hover */
+    box-shadow: 0 6px 20px rgba(255, 215, 0, 0.1); /* Ambient gold under-glow */
 }
 
 .nav-item.active-highlight:active {
@@ -65,7 +76,7 @@ body {
 }
 
 /* ==========================================================================
-   MAIN VIEWPORT
+   MAIN VIEWPORT LAYOUT
    ========================================================================== */
 .viewport { 
     flex: 1; 
@@ -94,7 +105,7 @@ body {
 @keyframes glow { 0% { opacity: 1; } 50% { opacity: 0.3; } 100% { opacity: 1; } }
 
 /* ==========================================================================
-   SIDE PANEL DRAWER
+   FIXED SIDE PANEL DRAWER
    ========================================================================== */
 .intel-drawer { 
     width: 420px; 
