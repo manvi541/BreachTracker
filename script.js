@@ -68,10 +68,11 @@ async function syncIntelligence() {
             let rawDateStr = r["Breach Submission Date"].trim();
             let recordDate = new Date(rawDateStr);
             
+            // Safe fallback parsing for MM/DD/YYYY formatted strings
             if (isNaN(recordDate.getTime()) && rawDateStr.includes('/')) {
                 const parts = rawDateStr.split('/');
                 if (parts.length === 3) {
-                    recordDate = new Date(parts[2], parts[0] - 1, parts[1]);
+                    recordDate = new Date(parseInt(parts[2]), parseInt(parts[0]) - 1, parseInt(parts[1]));
                 }
             }
 
@@ -140,9 +141,16 @@ function filterByTime(data, scale) {
 
 function setTimeRange(scale) {
     currentTimeScale = scale;
+    
     document.querySelectorAll('.time-btn').forEach(btn => {
-        btn.classList.toggle('active', btn.innerText.includes(scale) || (scale === 'ALL' && btn.innerText.includes('Multi-Year')));
+        const text = btn.innerText.toUpperCase();
+        const isActive = (scale === '3M' && text.includes('3M')) ||
+                         (scale === '6M' && text.includes('6M')) ||
+                         (scale === '1Y' && text.includes('1Y')) ||
+                         (scale === 'ALL' && text.includes('MULTI-YEAR'));
+        btn.classList.toggle('active', isActive);
     });
+
     updateFilteredChart();
 }
 
@@ -157,6 +165,27 @@ function updateFilteredChart() {
         mainChart.data.datasets[0].data = filteredData;
         mainChart.data.datasets[0].backgroundColor = bgColors;
         mainChart.data.datasets[0].borderColor = borderColors;
+
+        // DYNAMICALLY ADJUST X-AXIS BOUNDS ACCORDING TO FILTERED DATA
+        if (filteredData.length > 0) {
+            const minDate = filteredData[0].x;
+            const maxDate = filteredData[filteredData.length - 1].x;
+
+            mainChart.options.scales.x.min = minDate;
+            mainChart.options.scales.x.max = maxDate;
+
+            if (currentTimeScale === '3M' || currentTimeScale === '6M' || currentTimeScale === '1Y') {
+                mainChart.options.scales.x.time.unit = 'month';
+                mainChart.options.scales.x.time.displayFormats = { month: 'MMM yyyy' };
+            } else {
+                mainChart.options.scales.x.time.unit = 'year';
+                mainChart.options.scales.x.time.displayFormats = { year: 'yyyy', month: 'MMM yyyy' };
+            }
+        } else {
+            delete mainChart.options.scales.x.min;
+            delete mainChart.options.scales.x.max;
+        }
+
         mainChart.update();
     } else {
         initChart(filteredData);
@@ -173,6 +202,9 @@ function initChart(data) {
     if (mainChart) {
         mainChart.destroy();
     }
+
+    const initialMin = data.length ? data[0].x : undefined;
+    const initialMax = data.length ? data[data.length - 1].x : undefined;
 
     mainChart = new Chart(ctx, {
         type: 'bubble',
@@ -196,10 +228,11 @@ function initChart(data) {
             scales: {
                 x: {
                     type: 'time',
+                    min: initialMin,
+                    max: initialMax,
                     time: {
-                        parser: 'MM/dd/yyyy', 
                         unit: 'month',
-                        displayFormats: { month: 'MMM yyyy', day: 'MMM d, yyyy' }
+                        displayFormats: { year: 'yyyy', month: 'MMM yyyy', day: 'MMM d, yyyy' }
                     },
                     grid: { 
                         color: 'rgba(255, 255, 255, 0.03)',
