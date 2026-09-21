@@ -8,7 +8,7 @@ const stateMap = {
     "NH": 41, "ME": 42, "RI": 43, "MT": 44, "DE": 45, "SD": 46, "ND": 47, "AK": 48, "VT": 49, "WY": 50
 };
 
-// COLOR ENCODING BY BREACH TYPE
+// BREACH TYPE COLOR MAPPING
 const BREACH_COLOR_MAP = {
     'Hacking/IT Incident': '#ef4444',          // Red
     'Unauthorized Access/Disclosure': '#f59e0b',// Amber
@@ -29,7 +29,7 @@ function getBreachColor(typeStr = '') {
 
 let mainChart;
 let allProcessedData = [];
-let currentTimeScale = '1Y'; // Default 1 year view
+let currentTimeScale = '1Y';
 
 function renderLegend() {
     const legendEl = document.getElementById('legend-container');
@@ -80,7 +80,6 @@ async function syncIntelligence() {
             const radiusSize = affected > 0 ? Math.log10(affected) * 4 : 4;
             const breachType = r["Type of Breach"] || "Undetermined Vector";
 
-            // Multi-State Parsing if listed
             const rawStates = r["Affected States"] || r["State"] || "Unknown";
             const affectedStatesList = rawStates.split(',').map(s => s.trim().toUpperCase());
 
@@ -114,7 +113,6 @@ async function syncIntelligence() {
     }
 }
 
-// TIME SCALE FILTERING
 function filterByTime(data, scale) {
     if (!data.length) return [];
     const now = new Date();
@@ -284,7 +282,6 @@ function openProjectBriefing() {
     `;
 }
 
-// OPEN DRAWER: Includes Multi-State listing & direct HHS link
 function openDrawer(d) {
     const drawer = document.getElementById('side-panel');
     drawer.classList.add('open');
@@ -309,7 +306,6 @@ function openDrawer(d) {
         <div class="detail-item"><label>RECORDS COMPROMISED</label><div class="value" style="color:#ff4757; font-size:24px; font-weight:700;">${d.totalExposed.toLocaleString()}</div></div>
         <div class="detail-item"><label>INCIDENT DATE</label><div class="value">${d.date}</div></div>
         
-        <!-- PROMINENT DIRECT CITATION SOURCE -->
         <div class="detail-item" style="margin-top:15px; padding-top:10px; border-top:1px solid rgba(255,255,255,0.1);">
             <label>VERIFIED DATA SOURCE</label>
             <div class="value">
