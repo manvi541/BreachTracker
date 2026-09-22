@@ -9,6 +9,7 @@
     
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom"></script>
     <script src="https://d3js.org/d3.v7.min.js"></script>
 </head>
 <body>
@@ -22,7 +23,7 @@
             <div class="stats-summary">
                 <label>GLOBAL IMPACT</label>
                 <div id="total-affected" class="big-num">---</div>
-                <p style="margin: 5px 0 0 0; font-size: 11px; color: var(--text-dim); line-height: 1.4;">
+                <p style="margin: 5px 0 0 0; font-size: 11px; color: #8b949e; line-height: 1.4;">
                     Total Records Exposed Across All Documented Vectors
                 </p>
             </div>
@@ -45,7 +46,7 @@
                 </button>
             </header>
 
-            <!-- 1. PROMINENT DATA SOURCE CITATION BANNER -->
+            <!-- PROMINENT DATA SOURCE CITATION BANNER -->
             <div class="source-banner" style="margin: 15px 20px 0 20px; padding: 10px 14px; background: rgba(2, 132, 199, 0.1); border-left: 3px solid #0284c7; border-radius: 4px; font-size: 0.85rem; color: #cbd5e1;">
                 <strong>Data Source:</strong> U.S. Department of Health and Human Services (HHS) Office for Civil Rights — 
                 <a href="https://ocrportal.hhs.gov/ocr/breach/breach_report.jsf" target="_blank" rel="noopener noreferrer" style="color: #38bdf8; text-decoration: underline;">
@@ -53,21 +54,29 @@
                 </a>
             </div>
 
-            <!-- 2. TIME SCALE SELECTOR CONTROLS -->
-            <div class="controls-bar" style="margin: 15px 20px 5px 20px; display: flex; justify-content: flex-end; align-items: center; gap: 8px;">
-                <span style="font-size: 0.75rem; font-family: 'JetBrains Mono'; color: #8b949e;">TIME RANGE:</span>
-                <button class="time-btn" onclick="setTimeRange('3M')">3M</button>
-                <button class="time-btn" onclick="setTimeRange('6M')">6M</button>
-                <button class="time-btn active" onclick="setTimeRange('1Y')">1Y</button>
-                <button class="time-btn" onclick="setTimeRange('ALL')">Multi-Year (All)</button>
+            <!-- CONTROLS BAR: VIEW MODE + TIME SCALE -->
+            <div class="controls-bar" style="margin: 15px 20px 5px 20px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+                <div class="view-toggle" style="display: flex; gap: 6px; align-items: center;">
+                    <span style="font-size: 0.75rem; font-family: 'JetBrains Mono'; color: #8b949e;">VIEW MODE:</span>
+                    <button class="view-btn active" onclick="setChartMode('VECTOR')">By Attack Vector (Default)</button>
+                    <button class="view-btn" onclick="setChartMode('STATE')">By State Population Rank</button>
+                </div>
+
+                <div class="time-toggle" style="display: flex; gap: 6px; align-items: center;">
+                    <span style="font-size: 0.75rem; font-family: 'JetBrains Mono'; color: #8b949e;">TIME RANGE:</span>
+                    <button class="time-btn" onclick="setTimeRange('3M')">3M</button>
+                    <button class="time-btn" onclick="setTimeRange('6M')">6M</button>
+                    <button class="time-btn active" onclick="setTimeRange('1Y')">1Y</button>
+                    <button class="time-btn" onclick="setTimeRange('ALL')">Multi-Year (All)</button>
+                </div>
             </div>
 
-            <div class="chart-container">
+            <div class="chart-container" style="position: relative; height: calc(100vh - 250px); margin: 10px 20px;">
                 <div id="loader" class="spinner"></div>
                 <canvas id="breachChart"></canvas>
             </div>
 
-            <!-- 3. COLOR LEGEND FOR BREACH TYPES -->
+            <!-- COLOR LEGEND FOR BREACH TYPES -->
             <div id="legend-container" style="margin: 5px 20px 20px 20px; display: flex; gap: 16px; flex-wrap: wrap; font-size: 0.75rem; font-family: 'JetBrains Mono';"></div>
         </main>
 
