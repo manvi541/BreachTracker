@@ -8,7 +8,6 @@ const stateMap = {
     "NH": 41, "ME": 42, "RI": 43, "MT": 44, "DE": 45, "SD": 46, "ND": 47, "AK": 48, "VT": 49, "WY": 50
 };
 
-// CATEGORICAL BREACH VECTOR MAPPING FOR DEFAULT Y-AXIS VIEW
 const vectorMap = {
     "Hacking/IT Incident": 1,
     "Unauthorized Access/Disclosure": 2,
@@ -18,7 +17,6 @@ const vectorMap = {
     "Other / Undetermined": 6
 };
 
-// COLOR MAPPING BY VECTOR
 const BREACH_COLOR_MAP = {
     'Hacking/IT Incident': '#ef4444',          // Red
     'Unauthorized Access/Disclosure': '#f59e0b',// Amber
@@ -49,7 +47,7 @@ function getVectorYIndex(typeStr = '') {
 let mainChart;
 let allProcessedData = [];
 let currentTimeScale = '1Y';
-let currentMode = 'VECTOR'; // Default mode: 'VECTOR' or 'STATE'
+let currentMode = 'VECTOR'; 
 
 function renderLegend() {
     const legendEl = document.getElementById('legend-container');
@@ -205,7 +203,6 @@ function setTimeRange(scale) {
 function updateFilteredChart() {
     const rawFiltered = filterByTime(allProcessedData, currentTimeScale);
 
-    // Map Y coordinate according to selected view mode
     const chartData = rawFiltered.map(d => ({
         ...d,
         y: currentMode === 'VECTOR' ? d.yVector : d.yState
@@ -219,22 +216,22 @@ function updateFilteredChart() {
         mainChart.data.datasets[0].backgroundColor = bgColors;
         mainChart.data.datasets[0].borderColor = borderColors;
 
-        // Dynamic Y-Scale reconfiguration
         if (currentMode === 'VECTOR') {
             mainChart.options.scales.y.min = 0;
             mainChart.options.scales.y.max = 7;
+            mainChart.options.scales.y.ticks.stepSize = 1;
             mainChart.options.scales.y.ticks.callback = function(v) {
                 return Object.keys(vectorMap).find(k => vectorMap[k] === Math.round(v)) || '';
             };
         } else {
             mainChart.options.scales.y.min = 0;
             mainChart.options.scales.y.max = 51;
+            mainChart.options.scales.y.ticks.stepSize = 1;
             mainChart.options.scales.y.ticks.callback = function(v) {
                 return Object.keys(stateMap).find(k => stateMap[k] === Math.round(v)) || '';
             };
         }
 
-        // Dynamic X-Scale limits
         if (chartData.length > 0) {
             mainChart.options.scales.x.min = chartData[0].x;
             mainChart.options.scales.x.max = chartData[chartData.length - 1].x;
