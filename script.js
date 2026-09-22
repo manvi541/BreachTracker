@@ -47,6 +47,7 @@ function getVectorYIndex(typeStr = '') {
 let mainChart;
 let allProcessedData = [];
 let currentTimeScale = '1Y';
+let selectedYear = 'ALL';
 let currentMode = 'VECTOR'; 
 
 function renderLegend() {
@@ -80,6 +81,18 @@ function parseFlexibleDate(dateStr) {
         }
     }
     return null;
+}
+
+function populateYearDropdown(data) {
+    const yearSelect = document.getElementById('year-select');
+    if (!yearSelect) return;
+
+    const years = Array.from(new Set(data.map(d => d.x.getFullYear()))).sort((a, b) => b - a);
+    
+    yearSelect.innerHTML = `<option value="ALL">All Years (${years[years.length - 1]} - ${years[0]})</option>` +
+        years.map(y => `<option value="${y}">${y}</option>`).join('');
+    
+    yearSelect.value = selectedYear;
 }
 
 async function syncIntelligence() {
@@ -137,6 +150,7 @@ async function syncIntelligence() {
         allProcessedData = processed.sort((a, b) => a.x.getTime() - b.x.getTime());
         document.getElementById('total-affected').innerText = grandTotal.toLocaleString();
 
+        populateYearDropdown(allProcessedData);
         updateFilteredChart();
         document.getElementById('sync-status').innerText = `SYSTEM ONLINE: ${new Date().toLocaleTimeString()}`;
     } catch (e) { 
@@ -146,6 +160,11 @@ async function syncIntelligence() {
         const loader = document.getElementById('loader');
         if (loader) loader.style.display = 'none';
     }
+}
+
+function onYearChange(val) {
+    selectedYear = val;
+    updateFilteredChart();
 }
 
 function setChartMode(mode) {
@@ -159,25 +178,36 @@ function setChartMode(mode) {
     updateFilteredChart();
 }
 
-function filterByTime(data, scale) {
+function filterData(data) {
     if (!data.length) return [];
     
-    const maxTimestamp = Math.max(...data.map(d => d.x.getTime()));
+    let filtered = data;
+
+    // Filter by specific year if selected
+    if (selectedYear !== 'ALL') {
+        const yr = parseInt(selectedYear, 10);
+        filtered = filtered.filter(item => item.x.getFullYear() === yr);
+    }
+
+    if (!filtered.length) return [];
+
+    // Apply relative time range filter anchored to target dataset's latest point
+    const maxTimestamp = Math.max(...filtered.map(d => d.x.getTime()));
     const latestDate = new Date(maxTimestamp);
 
-    return data.filter(item => {
+    return filtered.filter(item => {
         const itemDate = item.x;
-        if (scale === '3M') {
+        if (currentTimeScale === '3M') {
             const target = new Date(latestDate);
             target.setMonth(target.getMonth() - 3);
             return itemDate >= target;
         }
-        if (scale === '6M') {
+        if (currentTimeScale === '6M') {
             const target = new Date(latestDate);
             target.setMonth(target.getMonth() - 6);
             return itemDate >= target;
         }
-        if (scale === '1Y') {
+        if (currentTimeScale === '1Y') {
             const target = new Date(latestDate);
             target.setFullYear(target.getFullYear() - 1);
             return itemDate >= target;
@@ -201,7 +231,7 @@ function setTimeRange(scale) {
 }
 
 function updateFilteredChart() {
-    const rawFiltered = filterByTime(allProcessedData, currentTimeScale);
+    const rawFiltered = filterData(allProcessedData);
 
     const chartData = rawFiltered.map(d => ({
         ...d,
@@ -236,7 +266,7 @@ function updateFilteredChart() {
             mainChart.options.scales.x.min = chartData[0].x;
             mainChart.options.scales.x.max = chartData[chartData.length - 1].x;
 
-            if (currentTimeScale === 'ALL') {
+            if (currentTimeScale === 'ALL' && selectedYear === 'ALL') {
                 mainChart.options.scales.x.time.unit = 'year';
                 mainChart.options.scales.x.time.displayFormats = { year: 'yyyy' };
             } else {
@@ -245,8 +275,7 @@ function updateFilteredChart() {
             }
         }
 
-        if (typeof mainChart.resetZoom === 'function') mainChart.resetZoom();
-        mainChart.update();
+        mainChart.update('none'); // Disable transition jumps/jittering during update
     } else {
         initChart(chartData);
     }
@@ -275,6 +304,7 @@ function initChart(data) {
         options: {
             responsive: true,
             maintainAspectRatio: false,
+            animation: false, // Prevents elements from sliding wildly on screen initialization
             layout: { padding: { right: 30, left: 10, top: 30, bottom: 10 } },
             scales: {
                 x: {
@@ -284,7 +314,7 @@ function initChart(data) {
                     ticks: { color: '#8b949e', font: { family: 'JetBrains Mono', size: 10 } },
                     title: {
                         display: true,
-                        text: 'TIMELINE OF INCIDENTS (CLICK & DRAG TO PAN / SCROLL TO ZOOM)',
+                        text: 'TIMELINE OF INCIDENTS',
                         color: '#555',
                         font: { family: 'JetBrains Mono', size: 10, weight: 'bold' }
                     }
@@ -306,10 +336,6 @@ function initChart(data) {
             },
             plugins: {
                 legend: { display: false },
-                zoom: {
-                    pan: { enabled: true, mode: 'x' },
-                    zoom: { wheel: { enabled: true }, pinch: { enabled: true }, mode: 'x' }
-                },
                 tooltip: {
                     backgroundColor: '#161b22',
                     titleFont: { family: 'JetBrains Mono', size: 11 },
@@ -343,10 +369,11 @@ function openProjectBriefing() {
                     U.S. HHS OCR Public Breach Register
                 </a>.
                 <br><br>
-                <b style="color:#fff;">2. Views & Layouts:</b><br>
+                <b style="color:#fff;">2. Views & Navigation:</b><br>
                 <ul style="padding-left:18px; margin-top:5px; color:#8b949e;">
-                    <li><b>By Attack Vector (Default):</b> Clusters breaches by vector category to cleanly display multi-state incidents.</li>
-                    <li><b>By State Population Rank:</b> Plots breaches against state population rank (#1 CA to #50 WY).</li>
+                    <li><b>Select Year Dropdown:</b> Filters data strictly to any target calendar year in history.</li>
+                    <li><b>By Attack Vector (Default):</b> Categorizes breaches vertically by cause type.</li>
+                    <li><b>By State Population Rank:</b> Plots breaches by state rank (#1 CA to #50 WY).</li>
                 </ul>
             </p>
         </div>
