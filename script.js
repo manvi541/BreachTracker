@@ -8,14 +8,24 @@ const stateMap = {
     "NH": 41, "ME": 42, "RI": 43, "MT": 44, "DE": 45, "SD": 46, "ND": 47, "AK": 48, "VT": 49, "WY": 50
 };
 
-// BREACH TYPE COLOR MAPPING
+// CATEGORICAL BREACH VECTOR MAPPING FOR DEFAULT Y-AXIS VIEW
+const vectorMap = {
+    "Hacking/IT Incident": 1,
+    "Unauthorized Access/Disclosure": 2,
+    "Theft": 3,
+    "Loss": 4,
+    "Improper Disposal": 5,
+    "Other / Undetermined": 6
+};
+
+// COLOR MAPPING BY VECTOR
 const BREACH_COLOR_MAP = {
     'Hacking/IT Incident': '#ef4444',          // Red
     'Unauthorized Access/Disclosure': '#f59e0b',// Amber
     'Theft': '#10b981',                          // Emerald
     'Loss': '#3b82f6',                           // Blue
     'Improper Disposal': '#8b5cf6',              // Purple
-    'Other': '#6b7280'                           // Gray
+    'Other / Undetermined': '#6b7280'            // Gray
 };
 
 function getBreachColor(typeStr = '') {
@@ -24,12 +34,22 @@ function getBreachColor(typeStr = '') {
             return color;
         }
     }
-    return BREACH_COLOR_MAP['Other'];
+    return BREACH_COLOR_MAP['Other / Undetermined'];
+}
+
+function getVectorYIndex(typeStr = '') {
+    for (const key of Object.keys(vectorMap)) {
+        if (typeStr.toLowerCase().includes(key.toLowerCase().split('/')[0])) {
+            return vectorMap[key];
+        }
+    }
+    return vectorMap['Other / Undetermined'];
 }
 
 let mainChart;
 let allProcessedData = [];
 let currentTimeScale = '1Y';
+let currentMode = 'VECTOR'; // Default mode: 'VECTOR' or 'STATE'
 
 function renderLegend() {
     const legendEl = document.getElementById('legend-container');
@@ -41,6 +61,27 @@ function renderLegend() {
                 <span>${type}</span>
             </div>
         `).join('');
+}
+
+function parseFlexibleDate(dateStr) {
+    if (!dateStr) return null;
+    let str = String(dateStr).trim();
+
+    let d = new Date(str);
+    if (!isNaN(d.getTime())) return d;
+
+    if (str.includes('/')) {
+        const parts = str.split('/');
+        if (parts.length === 3) {
+            const m = parseInt(parts[0], 10) - 1;
+            const day = parseInt(parts[1], 10);
+            let y = parseInt(parts[2], 10);
+            if (y < 100) y += 2000;
+            d = new Date(y, m, day);
+            if (!isNaN(d.getTime())) return d;
+        }
+    }
+    return null;
 }
 
 async function syncIntelligence() {
@@ -62,34 +103,30 @@ async function syncIntelligence() {
         for (const r of raw) {
             if (!r || !r["State"] || !r["Breach Submission Date"]) continue;
 
-            const affected = parseInt(r["Individuals Affected"]) || 0;
+            const affected = parseInt(r["Individuals Affected"], 10) || 0;
             grandTotal += affected;
 
-            let rawDateStr = r["Breach Submission Date"].trim();
-            let recordDate = new Date(rawDateStr);
-            
-            // Safe fallback parsing for MM/DD/YYYY formatted strings
-            if (isNaN(recordDate.getTime()) && rawDateStr.includes('/')) {
-                const parts = rawDateStr.split('/');
-                if (parts.length === 3) {
-                    recordDate = new Date(parseInt(parts[2]), parseInt(parts[0]) - 1, parseInt(parts[1]));
-                }
-            }
-
-            if (isNaN(recordDate.getTime())) continue;
+            const rawDateStr = r["Breach Submission Date"].trim();
+            const recordDate = parseFlexibleDate(rawDateStr);
+            if (!recordDate) continue;
 
             const radiusSize = affected > 0 ? Math.log10(affected) * 4 : 4;
-            const breachType = r["Type of Breach"] || "Undetermined Vector";
+            const breachType = r["Type of Breach"] || "Other / Undetermined";
 
             const rawStates = r["Affected States"] || r["State"] || "Unknown";
             const affectedStatesList = rawStates.split(',').map(s => s.trim().toUpperCase());
 
+            const primaryState = r["State"].trim().toUpperCase();
+            const stateRank = stateMap[primaryState] || 0;
+            const vectorRank = getVectorYIndex(breachType);
+
             processed.push({
                 x: recordDate, 
-                y: stateMap[r["State"].trim().toUpperCase()] || 0, 
+                yState: stateRank,
+                yVector: vectorRank,
                 r: Math.max(4, Math.min(radiusSize, 28)), 
                 entity: r["Name of Covered Entity"] || "Unknown Provider",
-                state: r["State"] || "Unknown",
+                state: primaryState,
                 affectedStates: affectedStatesList,
                 type: breachType,
                 color: getBreachColor(breachType),
@@ -99,11 +136,10 @@ async function syncIntelligence() {
             });
         }
 
-        allProcessedData = processed.filter(d => d.y > 0);
+        allProcessedData = processed.sort((a, b) => a.x.getTime() - b.x.getTime());
         document.getElementById('total-affected').innerText = grandTotal.toLocaleString();
 
         updateFilteredChart();
-
         document.getElementById('sync-status').innerText = `SYSTEM ONLINE: ${new Date().toLocaleTimeString()}`;
     } catch (e) { 
         console.error("Pipeline breakdown caught safely:", e); 
@@ -114,97 +150,117 @@ async function syncIntelligence() {
     }
 }
 
+function setChartMode(mode) {
+    currentMode = mode;
+    document.querySelectorAll('.view-btn').forEach(btn => {
+        btn.classList.toggle('active', 
+            (mode === 'VECTOR' && btn.innerText.includes('Vector')) ||
+            (mode === 'STATE' && btn.innerText.includes('State'))
+        );
+    });
+    updateFilteredChart();
+}
+
 function filterByTime(data, scale) {
     if (!data.length) return [];
-    const now = new Date();
+    
+    const maxTimestamp = Math.max(...data.map(d => d.x.getTime()));
+    const latestDate = new Date(maxTimestamp);
 
     return data.filter(item => {
-        const itemDate = new Date(item.x);
+        const itemDate = item.x;
         if (scale === '3M') {
-            const target = new Date();
-            target.setMonth(now.getMonth() - 3);
+            const target = new Date(latestDate);
+            target.setMonth(target.getMonth() - 3);
             return itemDate >= target;
         }
         if (scale === '6M') {
-            const target = new Date();
-            target.setMonth(now.getMonth() - 6);
+            const target = new Date(latestDate);
+            target.setMonth(target.getMonth() - 6);
             return itemDate >= target;
         }
         if (scale === '1Y') {
-            const target = new Date();
-            target.setFullYear(now.getFullYear() - 1);
+            const target = new Date(latestDate);
+            target.setFullYear(target.getFullYear() - 1);
             return itemDate >= target;
         }
-        return true; // 'ALL' Multi-Year Historical Data
+        return true;
     });
 }
 
 function setTimeRange(scale) {
     currentTimeScale = scale;
-    
     document.querySelectorAll('.time-btn').forEach(btn => {
         const text = btn.innerText.toUpperCase();
-        const isActive = (scale === '3M' && text.includes('3M')) ||
-                         (scale === '6M' && text.includes('6M')) ||
-                         (scale === '1Y' && text.includes('1Y')) ||
-                         (scale === 'ALL' && text.includes('MULTI-YEAR'));
-        btn.classList.toggle('active', isActive);
+        btn.classList.toggle('active', 
+            (scale === '3M' && text.includes('3M')) ||
+            (scale === '6M' && text.includes('6M')) ||
+            (scale === '1Y' && text.includes('1Y')) ||
+            (scale === 'ALL' && text.includes('MULTI-YEAR'))
+        );
     });
-
     updateFilteredChart();
 }
 
 function updateFilteredChart() {
-    const filteredData = filterByTime(allProcessedData, currentTimeScale);
-    filteredData.sort((a, b) => a.x - b.x);
+    const rawFiltered = filterByTime(allProcessedData, currentTimeScale);
 
-    const bgColors = filteredData.map(d => d.color + '55');
-    const borderColors = filteredData.map(d => d.color);
+    // Map Y coordinate according to selected view mode
+    const chartData = rawFiltered.map(d => ({
+        ...d,
+        y: currentMode === 'VECTOR' ? d.yVector : d.yState
+    })).filter(d => d.y > 0);
+
+    const bgColors = chartData.map(d => d.color + '55');
+    const borderColors = chartData.map(d => d.color);
 
     if (mainChart) {
-        mainChart.data.datasets[0].data = filteredData;
+        mainChart.data.datasets[0].data = chartData;
         mainChart.data.datasets[0].backgroundColor = bgColors;
         mainChart.data.datasets[0].borderColor = borderColors;
 
-        // DYNAMICALLY ADJUST X-AXIS BOUNDS ACCORDING TO FILTERED DATA
-        if (filteredData.length > 0) {
-            const minDate = filteredData[0].x;
-            const maxDate = filteredData[filteredData.length - 1].x;
-
-            mainChart.options.scales.x.min = minDate;
-            mainChart.options.scales.x.max = maxDate;
-
-            if (currentTimeScale === '3M' || currentTimeScale === '6M' || currentTimeScale === '1Y') {
-                mainChart.options.scales.x.time.unit = 'month';
-                mainChart.options.scales.x.time.displayFormats = { month: 'MMM yyyy' };
-            } else {
-                mainChart.options.scales.x.time.unit = 'year';
-                mainChart.options.scales.x.time.displayFormats = { year: 'yyyy', month: 'MMM yyyy' };
-            }
+        // Dynamic Y-Scale reconfiguration
+        if (currentMode === 'VECTOR') {
+            mainChart.options.scales.y.min = 0;
+            mainChart.options.scales.y.max = 7;
+            mainChart.options.scales.y.ticks.callback = function(v) {
+                return Object.keys(vectorMap).find(k => vectorMap[k] === Math.round(v)) || '';
+            };
         } else {
-            delete mainChart.options.scales.x.min;
-            delete mainChart.options.scales.x.max;
+            mainChart.options.scales.y.min = 0;
+            mainChart.options.scales.y.max = 51;
+            mainChart.options.scales.y.ticks.callback = function(v) {
+                return Object.keys(stateMap).find(k => stateMap[k] === Math.round(v)) || '';
+            };
         }
 
+        // Dynamic X-Scale limits
+        if (chartData.length > 0) {
+            mainChart.options.scales.x.min = chartData[0].x;
+            mainChart.options.scales.x.max = chartData[chartData.length - 1].x;
+
+            if (currentTimeScale === 'ALL') {
+                mainChart.options.scales.x.time.unit = 'year';
+                mainChart.options.scales.x.time.displayFormats = { year: 'yyyy' };
+            } else {
+                mainChart.options.scales.x.time.unit = 'month';
+                mainChart.options.scales.x.time.displayFormats = { month: 'MMM yyyy' };
+            }
+        }
+
+        if (typeof mainChart.resetZoom === 'function') mainChart.resetZoom();
         mainChart.update();
     } else {
-        initChart(filteredData);
+        initChart(chartData);
     }
 }
 
 function initChart(data) {
     const ctx = document.getElementById('breachChart').getContext('2d');
-    data.sort((a, b) => a.x - b.x);
-
     const bgColors = data.map(d => d.color + '55');
     const borderColors = data.map(d => d.color);
 
-    if (mainChart) {
-        mainChart.destroy();
-    }
-
-    const initialMin = data.length ? data[0].x : undefined;
-    const initialMax = data.length ? data[data.length - 1].x : undefined;
+    if (mainChart) mainChart.destroy();
 
     mainChart = new Chart(ctx, {
         type: 'bubble',
@@ -222,53 +278,41 @@ function initChart(data) {
         options: {
             responsive: true,
             maintainAspectRatio: false,
-            layout: {
-                padding: { right: 30, left: 10, top: 30, bottom: 10 }
-            },
+            layout: { padding: { right: 30, left: 10, top: 30, bottom: 10 } },
             scales: {
                 x: {
                     type: 'time',
-                    min: initialMin,
-                    max: initialMax,
-                    time: {
-                        unit: 'month',
-                        displayFormats: { year: 'yyyy', month: 'MMM yyyy', day: 'MMM d, yyyy' }
-                    },
-                    grid: { 
-                        color: 'rgba(255, 255, 255, 0.03)',
-                        borderDash: [3, 3] 
-                    },
-                    ticks: { 
-                        color: '#8b949e', 
-                        font: { family: 'JetBrains Mono', size: 10 },
-                        maxRotation: 30,
-                        autoSkip: true,
-                        maxTicksLimit: 12
-                    },
+                    time: { unit: 'month', displayFormats: { year: 'yyyy', month: 'MMM yyyy' } },
+                    grid: { color: 'rgba(255, 255, 255, 0.03)', borderDash: [3, 3] },
+                    ticks: { color: '#8b949e', font: { family: 'JetBrains Mono', size: 10 } },
                     title: {
                         display: true,
-                        text: 'TIMELINE OF INCIDENTS',
+                        text: 'TIMELINE OF INCIDENTS (CLICK & DRAG TO PAN / SCROLL TO ZOOM)',
                         color: '#555',
                         font: { family: 'JetBrains Mono', size: 10, weight: 'bold' }
                     }
                 },
                 y: {
-                    min: 0, 
-                    max: 51, 
+                    min: 0,
+                    max: 7,
                     grid: { color: 'rgba(255, 255, 255, 0.02)' },
                     ticks: {
                         color: '#8b949e',
-                        font: { size: 9, family: 'JetBrains Mono' },
+                        font: { size: 10, family: 'JetBrains Mono' },
                         stepSize: 1,
-                        autoSkip: false, 
+                        autoSkip: false,
                         callback: function(v) {
-                            return Object.keys(stateMap).find(k => stateMap[k] === Math.round(v)) || '';
+                            return Object.keys(vectorMap).find(k => vectorMap[k] === Math.round(v)) || '';
                         }
                     }
                 }
             },
             plugins: {
                 legend: { display: false },
+                zoom: {
+                    pan: { enabled: true, mode: 'x' },
+                    zoom: { wheel: { enabled: true }, pinch: { enabled: true }, mode: 'x' }
+                },
                 tooltip: {
                     backgroundColor: '#161b22',
                     titleFont: { family: 'JetBrains Mono', size: 11 },
@@ -278,14 +322,12 @@ function initChart(data) {
                     padding: 12,
                     displayColors: false,
                     callbacks: {
-                        label: c => `📍 ${c.raw.entity}\n🏷️ Vector: ${c.raw.type}\n📊 ${c.raw.totalExposed.toLocaleString()} records exposed`
+                        label: c => `📍 ${c.raw.entity}\n🏷️ Vector: ${c.raw.type}\n🌎 Region(s): ${c.raw.affectedStates.join(', ')}\n📊 ${c.raw.totalExposed.toLocaleString()} records exposed`
                     }
                 }
             },
             onClick: (e, el) => { 
-                if (el[0]) {
-                    openDrawer(mainChart.data.datasets[0].data[el[0].index]); 
-                }
+                if (el[0]) openDrawer(mainChart.data.datasets[0].data[el[0].index]); 
             }
         }
     });
@@ -304,11 +346,10 @@ function openProjectBriefing() {
                     U.S. HHS OCR Public Breach Register
                 </a>.
                 <br><br>
-                <b style="color:#fff;">2. Reading the Graph:</b><br>
+                <b style="color:#fff;">2. Views & Layouts:</b><br>
                 <ul style="padding-left:18px; margin-top:5px; color:#8b949e;">
-                    <li><b>X-Axis:</b> Timeline of incidents (use buttons above the chart to adjust the date range).</li>
-                    <li><b>Y-Axis:</b> State sorting by population rank (California at the top, Wyoming at the bottom).</li>
-                    <li><b>Colors:</b> Indicates breach vector type (Red = Hacking/IT, Amber = Unauthorized Access, Green = Theft).</li>
+                    <li><b>By Attack Vector (Default):</b> Clusters breaches by vector category to cleanly display multi-state incidents.</li>
+                    <li><b>By State Population Rank:</b> Plots breaches against state population rank (#1 CA to #50 WY).</li>
                 </ul>
             </p>
         </div>
@@ -319,10 +360,7 @@ function openDrawer(d) {
     const drawer = document.getElementById('side-panel');
     drawer.classList.add('open');
 
-    const isMajorHub = ["CA", "TX", "FL", "NY"].includes(d.state);
-    const locAnalysis = isMajorHub ? `High-Population Hub: Targeted a dense state healthcare network.` : `Regional Node: Demonstrates risks facing mid-to-small healthcare providers.`;
-
-    const multiStateDisplay = (d.affectedStates && d.affectedStates.length > 1) 
+    const multiStateDisplay = (d.affectedStates && d.affectedStates.length > 0) 
         ? d.affectedStates.join(', ')
         : d.state;
 
@@ -332,10 +370,9 @@ function openDrawer(d) {
             <div style="color:${d.color}; font-weight:bold; margin-bottom:12px; display:flex; align-items:center; font-family:'JetBrains Mono';">
                 <span class="ai-pulse" style="background-color:${d.color}"></span> VECTOR: ${d.type}
             </div>
-            <p style="font-size:13px; margin: 4px 0;"><strong>$> SCOPE ANALYSIS:</strong> ${locAnalysis}</p>
-            <p style="font-size:13px; margin: 4px 0;"><strong>$> ALL IMPACTED STATES:</strong> ${multiStateDisplay}</p>
+            <p style="font-size:13px; margin: 4px 0;"><strong>$> ALL IMPACTED REGIONS:</strong> ${multiStateDisplay}</p>
         </div>
-        <div class="detail-item"><label>PRIMARY STATE RANK</label><div class="value">${d.state} (Rank #${d.y} / 50)</div></div>
+        <div class="detail-item"><label>PRIMARY STATE RANK</label><div class="value">${d.state} (Rank #${d.yState || 'N/A'} / 50)</div></div>
         <div class="detail-item"><label>RECORDS COMPROMISED</label><div class="value" style="color:#ff4757; font-size:24px; font-weight:700;">${d.totalExposed.toLocaleString()}</div></div>
         <div class="detail-item"><label>INCIDENT DATE</label><div class="value">${d.date}</div></div>
         
