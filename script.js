@@ -52,7 +52,7 @@ function getHashJitter(str) {
         hash = (hash << 5) - hash + str.charCodeAt(i);
         hash |= 0;
     }
-    return ((hash % 100) / 100) * 0.3 - 0.15;
+    return ((hash % 100) / 100) * 0.4 - 0.2; // Slightly wider distribution offset
 }
 
 let mainChart;
@@ -140,7 +140,7 @@ async function syncIntelligence() {
             const recordDate = parseFlexibleDate(rawDateStr);
             if (!recordDate) continue;
 
-            const radiusSize = affected > 0 ? Math.log10(affected) * 2.2 : 3;
+            const radiusSize = affected > 0 ? Math.log10(affected) * 1.8 : 2.5;
             const breachType = r["Type of Breach"] || "Other / Undetermined";
 
             const rawStates = r["Affected States"] || r["State"] || "Unknown";
@@ -158,7 +158,7 @@ async function syncIntelligence() {
                 yState: stateRank,
                 yVector: vectorRank,
                 jitter: jitter,
-                r: Math.max(3.5, Math.min(radiusSize, 16)),
+                r: Math.max(3, Math.min(radiusSize, 12)), // Scaled down max radius to avoid clutter
                 entity: entityName,
                 state: primaryState,
                 affectedStates: affectedStatesList,
@@ -210,7 +210,7 @@ function updateFilteredChart() {
         y: (currentMode === 'VECTOR' ? d.yVector : d.yState) + d.jitter
     })).filter(d => d.y > 0);
 
-    const bgColors = chartData.map(d => d.color + '77');
+    const bgColors = chartData.map(d => d.color + '55'); // Higher transparency for dense clusters
     const borderColors = chartData.map(d => d.color);
 
     if (mainChart) {
@@ -229,26 +229,27 @@ function updateFilteredChart() {
         } else {
             mainChart.options.scales.y.min = 0;
             mainChart.options.scales.y.max = 51;
-            mainChart.options.scales.y.ticks.stepSize = 1;
+            mainChart.options.scales.y.ticks.stepSize = 5; // Step by 5 to prevent Y-axis text overlap
             mainChart.options.scales.y.ticks.callback = function(v) {
                 const rounded = Math.round(v);
                 return reverseStateMap[rounded] ? `${reverseStateMap[rounded]} (#${rounded})` : '';
             };
         }
 
-        if (selectedYear !== 'ALL') {
-            const yr = parseInt(selectedYear, 10);
-            mainChart.options.scales.x.min = new Date(yr, 0, 1);
-            mainChart.options.scales.x.max = new Date(yr, 11, 31);
+        if (selectedYear !== 'ALL' && filteredData.length > 0) {
+            // Adapt view bounds strictly to months with data
+            const minMonth = new Date(Math.min(...filteredData.map(d => d.x.getTime())));
+            const maxMonth = new Date(Math.max(...filteredData.map(d => d.x.getTime())));
+            
+            // Set bounds with padding
+            mainChart.options.scales.x.min = new Date(minMonth.getFullYear(), minMonth.getMonth(), 1);
+            mainChart.options.scales.x.max = new Date(maxMonth.getFullYear(), maxMonth.getMonth() + 1, 0);
             mainChart.options.scales.x.time.unit = 'month';
             mainChart.options.scales.x.time.displayFormats = { month: 'MMM' };
         } else {
             if (allProcessedData.length > 0) {
                 mainChart.options.scales.x.min = allProcessedData[0].x;
                 mainChart.options.scales.x.max = allProcessedData[allProcessedData.length - 1].x;
-            } else {
-                delete mainChart.options.scales.x.min;
-                delete mainChart.options.scales.x.max;
             }
             mainChart.options.scales.x.time.unit = 'year';
             mainChart.options.scales.x.time.displayFormats = { year: 'yyyy' };
@@ -262,12 +263,10 @@ function updateFilteredChart() {
 
 function initChart(data) {
     const ctx = document.getElementById('breachChart').getContext('2d');
-    const bgColors = data.map(d => d.color + '77');
+    const bgColors = data.map(d => d.color + '55');
     const borderColors = data.map(d => d.color);
 
     if (mainChart) mainChart.destroy();
-
-    const yr = selectedYear !== 'ALL' ? parseInt(selectedYear, 10) : null;
 
     mainChart = new Chart(ctx, {
         type: 'bubble',
@@ -276,7 +275,7 @@ function initChart(data) {
                 data: data,
                 backgroundColor: bgColors, 
                 borderColor: borderColors,
-                borderWidth: 1.2,
+                borderWidth: 1,
                 hoverBackgroundColor: '#38bdf8',
                 hoverBorderColor: '#ffffff',
                 hoverBorderWidth: 2
@@ -290,10 +289,8 @@ function initChart(data) {
             scales: {
                 x: {
                     type: 'time',
-                    min: yr ? new Date(yr, 0, 1) : undefined,
-                    max: yr ? new Date(yr, 11, 31) : undefined,
                     time: { 
-                        unit: yr ? 'month' : 'year', 
+                        unit: 'month', 
                         displayFormats: { year: 'yyyy', month: 'MMM' } 
                     },
                     grid: { color: 'rgba(255, 255, 255, 0.04)', borderDash: [2, 2] },
@@ -346,67 +343,3 @@ function initChart(data) {
         }
     });
 }
-
-function openProjectBriefing() {
-    const drawer = document.getElementById('side-panel');
-    drawer.classList.add('open');
-    document.getElementById('panel-content').innerHTML = `
-        <div class="ai-box">
-            <span class="ai-pulse"></span> <strong style="font-family:'JetBrains Mono'; color:#00d2ff;">[HOW THE TRACKER WORKS]</strong>
-            <p style="margin-top:12px; line-height:1.6; color:#c9d1d9; font-size:13px;">
-                <b style="color:#fff;">1. Data Source & Attribution:</b><br>
-                All data is pulled directly from the 
-                <a href="https://ocrportal.hhs.gov/ocr/breach/breach_report.jsf" target="_blank" style="color:#38bdf8; text-decoration:underline;">
-                    U.S. HHS OCR Public Breach Register
-                </a>.
-                <br><br>
-                <b style="color:#fff;">2. Views & Navigation:</b><br>
-                <ul style="padding-left:18px; margin-top:5px; color:#8b949e;">
-                    <li><b>Select Year:</b> View all available dataset years spread out across months.</li>
-                    <li><b>By Attack Vector:</b> Group breaches vertically by attack category.</li>
-                    <li><b>By State Population Rank:</b> Maps state abbreviations (CA, TX, NY, etc.) vertically by population rank.</li>
-                </ul>
-            </p>
-        </div>
-    `;
-}
-
-function openDrawer(d) {
-    const drawer = document.getElementById('side-panel');
-    drawer.classList.add('open');
-
-    const multiStateDisplay = (d.affectedStates && d.affectedStates.length > 0) 
-        ? d.affectedStates.join(', ')
-        : d.state;
-
-    document.getElementById('panel-content').innerHTML = `
-        <div class="detail-item"><label>TARGET ENTITY</label><div class="value" style="color:#00d2ff; font-weight:bold;">${d.entity}</div></div>
-        <div class="ai-box" style="margin-top:15px; margin-bottom:15px;">
-            <div style="color:${d.color}; font-weight:bold; margin-bottom:12px; display:flex; align-items:center; font-family:'JetBrains Mono';">
-                <span class="ai-pulse" style="background-color:${d.color}"></span> VECTOR: ${d.type}
-            </div>
-            <p style="font-size:13px; margin: 4px 0;"><strong>$> ALL IMPACTED REGIONS:</strong> ${multiStateDisplay}</p>
-        </div>
-        <div class="detail-item"><label>PRIMARY STATE RANK</label><div class="value">${d.state} (Rank #${d.yState || 'N/A'} / 50)</div></div>
-        <div class="detail-item"><label>RECORDS COMPROMISED</label><div class="value" style="color:#ff4757; font-size:24px; font-weight:700;">${d.totalExposed.toLocaleString()}</div></div>
-        <div class="detail-item"><label>INCIDENT DATE</label><div class="value">${d.date}</div></div>
-        
-        <div class="detail-item" style="margin-top:15px; padding-top:10px; border-top:1px solid rgba(255,255,255,0.1);">
-            <label>VERIFIED DATA SOURCE</label>
-            <div class="value">
-                <a href="${d.hhsUrl}" target="_blank" rel="noopener noreferrer" style="color:#38bdf8; text-decoration:underline; font-size:12px;">
-                    U.S. HHS OCR Public Breach Record ↗
-                </a>
-            </div>
-        </div>
-    `;
-}
-
-function closePanel() { document.getElementById('side-panel').classList.remove('open'); }
-
-document.addEventListener('DOMContentLoaded', () => {
-    renderLegend();
-});
-
-setInterval(syncIntelligence, 15000);
-syncIntelligence();
