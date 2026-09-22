@@ -46,8 +46,7 @@ function getVectorYIndex(typeStr = '') {
 
 let mainChart;
 let allProcessedData = [];
-let currentTimeScale = '1Y';
-let selectedYear = 'ALL';
+let selectedYear = '2026'; // Defaulting to recent year
 let currentMode = 'VECTOR'; 
 
 function renderLegend() {
@@ -89,9 +88,14 @@ function populateYearDropdown(data) {
 
     const years = Array.from(new Set(data.map(d => d.x.getFullYear()))).sort((a, b) => b - a);
     
-    yearSelect.innerHTML = `<option value="ALL">All Years (${years[years.length - 1]} - ${years[0]})</option>` +
-        years.map(y => `<option value="${y}">${y}</option>`).join('');
+    if (years.length > 0 && !years.includes(parseInt(selectedYear, 10))) {
+        selectedYear = String(years[0]);
+    }
+
+    let optionsHTML = years.map(y => `<option value="${y}">${y}</option>`).join('');
+    optionsHTML += `<option value="ALL">All Years (${years[years.length - 1]}–${years[0]})</option>`;
     
+    yearSelect.innerHTML = optionsHTML;
     yearSelect.value = selectedYear;
 }
 
@@ -178,62 +182,15 @@ function setChartMode(mode) {
     updateFilteredChart();
 }
 
-function filterData(data) {
-    if (!data.length) return [];
-    
-    let filtered = data;
+function updateFilteredChart() {
+    let filteredData = allProcessedData;
 
-    // Filter by specific year if selected
     if (selectedYear !== 'ALL') {
-        const yr = parseInt(selectedYear, 10);
-        filtered = filtered.filter(item => item.x.getFullYear() === yr);
+        const targetYear = parseInt(selectedYear, 10);
+        filteredData = allProcessedData.filter(d => d.x.getFullYear() === targetYear);
     }
 
-    if (!filtered.length) return [];
-
-    // Apply relative time range filter anchored to target dataset's latest point
-    const maxTimestamp = Math.max(...filtered.map(d => d.x.getTime()));
-    const latestDate = new Date(maxTimestamp);
-
-    return filtered.filter(item => {
-        const itemDate = item.x;
-        if (currentTimeScale === '3M') {
-            const target = new Date(latestDate);
-            target.setMonth(target.getMonth() - 3);
-            return itemDate >= target;
-        }
-        if (currentTimeScale === '6M') {
-            const target = new Date(latestDate);
-            target.setMonth(target.getMonth() - 6);
-            return itemDate >= target;
-        }
-        if (currentTimeScale === '1Y') {
-            const target = new Date(latestDate);
-            target.setFullYear(target.getFullYear() - 1);
-            return itemDate >= target;
-        }
-        return true;
-    });
-}
-
-function setTimeRange(scale) {
-    currentTimeScale = scale;
-    document.querySelectorAll('.time-btn').forEach(btn => {
-        const text = btn.innerText.toUpperCase();
-        btn.classList.toggle('active', 
-            (scale === '3M' && text.includes('3M')) ||
-            (scale === '6M' && text.includes('6M')) ||
-            (scale === '1Y' && text.includes('1Y')) ||
-            (scale === 'ALL' && text.includes('MULTI-YEAR'))
-        );
-    });
-    updateFilteredChart();
-}
-
-function updateFilteredChart() {
-    const rawFiltered = filterData(allProcessedData);
-
-    const chartData = rawFiltered.map(d => ({
+    const chartData = filteredData.map(d => ({
         ...d,
         y: currentMode === 'VECTOR' ? d.yVector : d.yState
     })).filter(d => d.y > 0);
@@ -262,20 +219,25 @@ function updateFilteredChart() {
             };
         }
 
-        if (chartData.length > 0) {
-            mainChart.options.scales.x.min = chartData[0].x;
-            mainChart.options.scales.x.max = chartData[chartData.length - 1].x;
-
-            if (currentTimeScale === 'ALL' && selectedYear === 'ALL') {
-                mainChart.options.scales.x.time.unit = 'year';
-                mainChart.options.scales.x.time.displayFormats = { year: 'yyyy' };
+        if (selectedYear !== 'ALL') {
+            const yr = parseInt(selectedYear, 10);
+            mainChart.options.scales.x.min = new Date(yr, 0, 1);
+            mainChart.options.scales.x.max = new Date(yr, 11, 31);
+            mainChart.options.scales.x.time.unit = 'month';
+            mainChart.options.scales.x.time.displayFormats = { month: 'MMM' };
+        } else {
+            if (allProcessedData.length > 0) {
+                mainChart.options.scales.x.min = allProcessedData[0].x;
+                mainChart.options.scales.x.max = allProcessedData[allProcessedData.length - 1].x;
             } else {
-                mainChart.options.scales.x.time.unit = 'month';
-                mainChart.options.scales.x.time.displayFormats = { month: 'MMM yyyy' };
+                delete mainChart.options.scales.x.min;
+                delete mainChart.options.scales.x.max;
             }
+            mainChart.options.scales.x.time.unit = 'year';
+            mainChart.options.scales.x.time.displayFormats = { year: 'yyyy' };
         }
 
-        mainChart.update('none'); // Disable transition jumps/jittering during update
+        mainChart.update('none');
     } else {
         initChart(chartData);
     }
@@ -287,6 +249,8 @@ function initChart(data) {
     const borderColors = data.map(d => d.color);
 
     if (mainChart) mainChart.destroy();
+
+    const yr = selectedYear !== 'ALL' ? parseInt(selectedYear, 10) : null;
 
     mainChart = new Chart(ctx, {
         type: 'bubble',
@@ -304,14 +268,23 @@ function initChart(data) {
         options: {
             responsive: true,
             maintainAspectRatio: false,
-            animation: false, // Prevents elements from sliding wildly on screen initialization
+            animation: false,
             layout: { padding: { right: 30, left: 10, top: 30, bottom: 10 } },
             scales: {
                 x: {
                     type: 'time',
-                    time: { unit: 'month', displayFormats: { year: 'yyyy', month: 'MMM yyyy' } },
-                    grid: { color: 'rgba(255, 255, 255, 0.03)', borderDash: [3, 3] },
-                    ticks: { color: '#8b949e', font: { family: 'JetBrains Mono', size: 10 } },
+                    min: yr ? new Date(yr, 0, 1) : undefined,
+                    max: yr ? new Date(yr, 11, 31) : undefined,
+                    time: { 
+                        unit: yr ? 'month' : 'year', 
+                        displayFormats: { year: 'yyyy', month: 'MMM' } 
+                    },
+                    grid: { color: 'rgba(255, 255, 255, 0.05)', borderDash: [3, 3] },
+                    ticks: { 
+                        color: '#8b949e', 
+                        font: { family: 'JetBrains Mono', size: 10 },
+                        autoSkip: false
+                    },
                     title: {
                         display: true,
                         text: 'TIMELINE OF INCIDENTS',
@@ -364,16 +337,16 @@ function openProjectBriefing() {
             <span class="ai-pulse"></span> <strong style="font-family:'JetBrains Mono'; color:#00d2ff;">[HOW THE TRACKER WORKS]</strong>
             <p style="margin-top:12px; line-height:1.6; color:#c9d1d9; font-size:13px;">
                 <b style="color:#fff;">1. Data Source & Attribution:</b><br>
-                All data is pulled from the official 
+                All data is pulled directly from the 
                 <a href="https://ocrportal.hhs.gov/ocr/breach/breach_report.jsf" target="_blank" style="color:#38bdf8; text-decoration:underline;">
                     U.S. HHS OCR Public Breach Register
                 </a>.
                 <br><br>
                 <b style="color:#fff;">2. Views & Navigation:</b><br>
                 <ul style="padding-left:18px; margin-top:5px; color:#8b949e;">
-                    <li><b>Select Year Dropdown:</b> Filters data strictly to any target calendar year in history.</li>
-                    <li><b>By Attack Vector (Default):</b> Categorizes breaches vertically by cause type.</li>
-                    <li><b>By State Population Rank:</b> Plots breaches by state rank (#1 CA to #50 WY).</li>
+                    <li><b>Select Year:</b> View 2026, 2025, or multi-year historical data clearly without scaling issues.</li>
+                    <li><b>By Attack Vector (Default):</b> Clusters breaches by category to clearly present multi-state incidents.</li>
+                    <li><b>By State Population Rank:</b> Plots breaches against state population rank (#1 CA to #50 WY).</li>
                 </ul>
             </p>
         </div>
