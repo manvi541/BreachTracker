@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Healthcare Breach Radar</title>
     <link rel="stylesheet" href="style.css">
-    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Plus+Jakarta+Sans:wght@400;600;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Plus+Jakarta+Sans:wght@400;600;700&display=swap" rel="stylesheet">
     
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns"></script>
@@ -55,17 +55,16 @@
             <div class="controls-bar" style="margin: 15px 20px 5px 20px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
                 <div class="view-toggle" style="display: flex; gap: 6px; align-items: center;">
                     <span style="font-size: 0.75rem; font-family: 'JetBrains Mono'; color: #8b949e;">VIEW MODE:</span>
-                    <button class="view-btn active" onclick="setChartMode('VECTOR')">By Attack Vector (Default)</button>
-                    <button class="view-btn" onclick="setChartMode('STATE')">By State Population Rank</button>
+                    <button id="btn-vector" class="view-btn active" onclick="setChartMode('VECTOR')">By Attack Vector (Default)</button>
+                    <button id="btn-state" class="view-btn" onclick="setChartMode('STATE')">By State Population Rank</button>
                 </div>
 
                 <div class="time-controls" style="display: flex; gap: 12px; align-items: center;">
                     <div style="display: flex; gap: 6px; align-items: center;">
                         <span style="font-size: 0.75rem; font-family: 'JetBrains Mono'; color: #8b949e;">SELECT YEAR:</span>
+                        <!-- Dynamic options generated via JavaScript based on actual CSV contents -->
                         <select id="year-select" onchange="onYearChange(this.value)" style="background: #161b22; color: #00d2ff; border: 1px solid rgba(255,255,255,0.2); padding: 5px 10px; border-radius: 4px; font-family: 'JetBrains Mono'; font-size: 0.8rem; cursor: pointer;">
-                            <option value="2026">2026</option>
-                            <option value="2025">2025</option>
-                            <option value="ALL">All Years</option>
+                            <option value="LOADING">Loading dataset years...</option>
                         </select>
                     </div>
                 </div>
