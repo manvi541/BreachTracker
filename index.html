@@ -29,7 +29,7 @@
 
             <div class="metric-box">
                 <span class="metric-title">TOTAL COMPROMISED RECORDS</span>
-                <div id="total-affected" class="metric-number">40,911,675</div>
+                <div id="total-affected" class="metric-number">---</div>
                 <p class="metric-desc">Documented across all registered incident vectors.</p>
             </div>
 
@@ -44,18 +44,19 @@
 
             <div class="sidebar-status">
                 <span class="status-dot"></span>
-                <span id="sync-status">SYSTEM ONLINE: 7:13:00 PM</span>
+                <span id="sync-status">INITIALIZING...</span>
             </div>
         </aside>
 
         <!-- MAIN DASHBOARD CONTENT -->
         <main class="main-content">
             
+            <!-- PROMINENT CITATION HEADER -->
             <header class="top-header">
                 <div class="header-titles">
                     <h2>Incident Distribution Radar</h2>
                     <p class="data-source">
-                        Data Source: U.S. Department of Health and Human Services (HHS) Office for Civil Rights — 
+                        <strong>DATA SOURCE & CITATION:</strong> U.S. Department of Health and Human Services (HHS) Office for Civil Rights — 
                         <a href="https://ocrportal.hhs.gov/ocr/breach/breach_report.jsf" target="_blank" rel="noopener noreferrer">
                             Official Public Breach Register ↗
                         </a>
@@ -63,6 +64,7 @@
                 </div>
             </header>
 
+            <!-- TOOLBAR CONTROLS -->
             <div class="control-toolbar">
                 <div class="toolbar-group">
                     <button class="briefing-btn" onclick="openProjectBriefing()">
@@ -70,20 +72,20 @@
                     </button>
                     <div class="mode-toggles">
                         <span class="label">VIEW MODE:</span>
-                        <button id="btn-vector" class="toggle-btn active" onclick="setChartMode('VECTOR')">By Attack Vector</button>
+                        <button id="btn-vector" class="toggle-btn active" onclick="setChartMode('VECTOR')">By Attack Vector (Default)</button>
                         <button id="btn-state" class="toggle-btn" onclick="setChartMode('STATE')">By State Population</button>
                     </div>
                 </div>
 
                 <div class="toolbar-group">
-                    <label for="year-select" class="label">FILTER YEAR:</label>
+                    <label for="year-select" class="label">TIMELINE FILTER:</label>
                     <select id="year-select" class="custom-select" onchange="onYearChange(this.value)">
-                        <option value="2026">2026</option>
+                        <option value="LOADING">Loading timeline...</option>
                     </select>
                 </div>
             </div>
 
-            <!-- CHART BOX -->
+            <!-- CHART CANVAS -->
             <div class="chart-container">
                 <div id="loader" class="spinner-overlay" style="display: none;"></div>
                 <div class="canvas-holder">
@@ -91,14 +93,14 @@
                 </div>
             </div>
 
-            <!-- BOTTOM LEGEND BAR -->
+            <!-- MEANINGFUL COLOR LEGEND -->
             <footer class="legend-footer">
-                <span class="legend-heading">INCIDENT CATEGORIES:</span>
+                <span class="legend-heading">COLOR KEY (ATTACK VECTOR):</span>
                 <div id="legend-container" class="legend-grid"></div>
             </footer>
         </main>
 
-        <!-- SLIDE-OUT DETAIL DRAWER -->
+        <!-- DETAIL SLIDE-OUT PANEL -->
         <div id="side-panel" class="drawer-panel">
             <div class="drawer-header">
                 <h3>INCIDENT TERMINAL DATA</h3>
