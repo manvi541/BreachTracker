@@ -5,12 +5,12 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Healthcare Breach Intelligence Radar</title>
     
-    <!-- Design & Typography Dependencies -->
+    <!-- Typography -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
     
-    <!-- Visualization Libraries -->
+    <!-- Libraries -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns"></script>
     <script src="https://d3js.org/d3.v7.min.js"></script>
@@ -18,104 +18,96 @@
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <div class="app-shell">
+    <div class="app-container">
         
-        <!-- SIDEBAR -->
-        <aside class="sidebar-nav">
-            <div class="brand-block">
-                <div class="brand-icon">🛡️</div>
-                <div class="brand-text">
-                    <h1>Healthcare Breach Tracker</h1>
-                    <span class="badge-intel">STANFORD INTEL</span>
-                </div>
+        <!-- LEFT SIDEBAR -->
+        <aside class="sidebar">
+            <div class="brand">
+                <div class="brand-badge">🛡️ STANFORD INTEL</div>
+                <h1>Healthcare<br>Breach Tracker</h1>
             </div>
 
-            <div class="metric-card">
-                <span class="metric-label">TOTAL COMPROMISED RECORDS</span>
-                <div id="total-affected" class="metric-value">---</div>
-                <p class="metric-subtext">Documented across all registered incident vectors.</p>
+            <div class="metric-box">
+                <span class="metric-title">TOTAL COMPROMISED RECORDS</span>
+                <div id="total-affected" class="metric-number">40,911,675</div>
+                <p class="metric-desc">Documented across all registered incident vectors.</p>
             </div>
 
-            <nav class="nav-links">
-                <a href="#" class="nav-link active">
+            <nav class="sidebar-menu">
+                <a href="#" class="menu-item active">
                     <span class="icon">📊</span> Breach Analytics
                 </a>
-                <a href="https://medisecproject.org/#projects" target="_blank" class="nav-link highlight">
+                <a href="https://medisecproject.org/#projects" target="_blank" rel="noopener noreferrer" class="menu-item highlight">
                     <span class="icon">🔒</span> Security Report ↗
                 </a>
             </nav>
 
-            <div class="sidebar-footer">
-                <div class="status-indicator">
-                    <span class="pulse-dot"></span>
-                    <span id="sync-status">INITIALIZING...</span>
-                </div>
+            <div class="sidebar-status">
+                <span class="status-dot"></span>
+                <span id="sync-status">SYSTEM ONLINE: 7:13:00 PM</span>
             </div>
         </aside>
 
-        <!-- MAIN DASHBOARD -->
-        <main class="viewport-content">
+        <!-- MAIN DASHBOARD CONTENT -->
+        <main class="main-content">
             
-            <header class="dashboard-header">
+            <header class="top-header">
                 <div class="header-titles">
                     <h2>Incident Distribution Radar</h2>
-                    <p class="citation-text">
+                    <p class="data-source">
                         Data Source: U.S. Department of Health and Human Services (HHS) Office for Civil Rights — 
                         <a href="https://ocrportal.hhs.gov/ocr/breach/breach_report.jsf" target="_blank" rel="noopener noreferrer">
                             Official Public Breach Register ↗
                         </a>
                     </p>
                 </div>
+            </header>
 
-                <div class="header-actions">
+            <div class="control-toolbar">
+                <div class="toolbar-group">
                     <button class="briefing-btn" onclick="openProjectBriefing()">
                         ℹ️ Methodology
                     </button>
-                </div>
-            </header>
-
-            <div class="toolbar">
-                <div class="control-group">
-                    <span class="control-label">VIEW MODE:</span>
-                    <div class="button-group">
-                        <button id="btn-vector" class="toggle-btn active" onclick="setChartMode('VECTOR')">
-                            By Attack Vector
-                        </button>
-                        <button id="btn-state" class="toggle-btn" onclick="setChartMode('STATE')">
-                            By State Population
-                        </button>
+                    <div class="mode-toggles">
+                        <span class="label">VIEW MODE:</span>
+                        <button id="btn-vector" class="toggle-btn active" onclick="setChartMode('VECTOR')">By Attack Vector</button>
+                        <button id="btn-state" class="toggle-btn" onclick="setChartMode('STATE')">By State Population</button>
                     </div>
                 </div>
 
-                <div class="control-group">
-                    <label for="year-select" class="control-label">FILTER YEAR:</label>
-                    <select id="year-select" class="styled-select" onchange="onYearChange(this.value)">
-                        <option value="LOADING">Loading dataset years...</option>
+                <div class="toolbar-group">
+                    <label for="year-select" class="label">FILTER YEAR:</label>
+                    <select id="year-select" class="custom-select" onchange="onYearChange(this.value)">
+                        <option value="2026">2026</option>
                     </select>
                 </div>
             </div>
 
-            <div class="chart-wrapper">
-                <div id="loader" class="spinner"></div>
-                <canvas id="breachChart"></canvas>
+            <!-- CHART BOX -->
+            <div class="chart-container">
+                <div id="loader" class="spinner-overlay" style="display: none;"></div>
+                <div class="canvas-holder">
+                    <canvas id="breachChart"></canvas>
+                </div>
             </div>
 
-            <footer class="legend-bar">
-                <span class="legend-title">INCIDENT CATEGORIES:</span>
-                <div id="legend-container" class="legend-items"></div>
+            <!-- BOTTOM LEGEND BAR -->
+            <footer class="legend-footer">
+                <span class="legend-heading">INCIDENT CATEGORIES:</span>
+                <div id="legend-container" class="legend-grid"></div>
             </footer>
         </main>
 
-        <!-- SLIDE-OUT PANEL -->
-        <div id="side-panel" class="intel-drawer">
+        <!-- SLIDE-OUT DETAIL DRAWER -->
+        <div id="side-panel" class="drawer-panel">
             <div class="drawer-header">
                 <h3>INCIDENT TERMINAL DATA</h3>
-                <button class="close-btn" onclick="closePanel()">×</button>
+                <button class="drawer-close" onclick="closePanel()">×</button>
             </div>
-            <div id="panel-content" class="drawer-body"></div>
+            <div id="panel-content" class="drawer-content"></div>
         </div>
     </div>
-    
+
     <script src="script.js"></script>
 </body>
 </html>
