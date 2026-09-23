@@ -55,15 +55,6 @@
             flex-shrink: 0;
         }
 
-        .brand-badge {
-            font-family: var(--font-mono);
-            font-size: 0.7rem;
-            font-weight: 700;
-            color: var(--accent-blue);
-            letter-spacing: 1px;
-            margin-bottom: 6px;
-        }
-
         .brand h1 { font-size: 1.4rem; font-weight: 700; line-height: 1.2; }
 
         .metric-box {
@@ -215,7 +206,6 @@
     <div class="app-container">
         <aside class="sidebar">
             <div class="brand">
-                <div class="brand-badge">🛡️ STANFORD INTEL</div>
                 <h1>Healthcare<br>Breach Tracker</h1>
             </div>
 
@@ -225,10 +215,9 @@
                 <p class="metric-desc">Documented across all registered breach events.</p>
             </div>
 
-            <!-- PROMINENT DATA SOURCE & CITATION -->
             <div class="source-box">
                 <strong>DATA CITATION & SOURCE:</strong>
-                Data is pulled directly from the U.S. Department of Health and Human Services (HHS) Office for Civil Rights.
+                Data is loaded directly from the U.S. Department of Health and Human Services (HHS) Office for Civil Rights.
                 <br><br>
                 <a href="https://ocrportal.hhs.gov/ocr/breach/breach_report.jsf" target="_blank" rel="noopener noreferrer">
                     Official HHS Breach Register ↗
@@ -237,7 +226,7 @@
 
             <div class="sidebar-status">
                 <span class="status-dot"></span>
-                <span id="sync-status">INITIALIZING...</span>
+                <span id="sync-status">LOADING...</span>
             </div>
         </aside>
 
@@ -245,12 +234,12 @@
             <div class="control-toolbar">
                 <div class="toolbar-group">
                     <span class="label">VIEW MODE:</span>
-                    <button id="btn-vector" class="toggle-btn active" onclick="setChartMode('VECTOR')">By Attack Vector (Default)</button>
+                    <button id="btn-vector" class="toggle-btn active" onclick="setChartMode('VECTOR')">By Breach Type (Default)</button>
                     <button id="btn-state" class="toggle-btn" onclick="setChartMode('STATE')">By State Population</button>
                 </div>
 
                 <div class="toolbar-group">
-                    <label for="year-select" class="label">TIMELINE SCALE:</label>
+                    <label for="year-select" class="label">TIMELINE RANGE:</label>
                     <select id="year-select" class="custom-select" onchange="onYearChange(this.value)">
                         <option value="LOADING">Loading timeline...</option>
                     </select>
@@ -378,7 +367,7 @@
             yearSelect.value = selectedYear;
         }
 
-        async function syncIntelligence() {
+        async function loadData() {
             try {
                 const response = await fetch(`${CSV_URL}&nocache=${Date.now()}`);
                 const csv = await response.text();
@@ -405,7 +394,7 @@
                         yVector: getVectorYIndex(breachType),
                         jitter: ((Math.random() * 0.3) - 0.15),
                         r: Math.max(3, Math.min(affected > 0 ? Math.log10(affected) * 1.8 : 2.5, 10)),
-                        entity: r["Name of Covered Entity"] || "Unknown Provider",
+                        entity: r["Name of Covered Entity"] || "Unknown Entity",
                         state: primaryState,
                         type: breachType,
                         color: getBreachColor(breachType),
@@ -420,9 +409,10 @@
 
                 populateYearDropdown(allProcessedData);
                 updateFilteredChart();
-                document.getElementById('sync-status').innerText = `SYSTEM ONLINE: ${new Date().toLocaleTimeString()}`;
+                document.getElementById('sync-status').innerText = `UPDATED: ${new Date().toLocaleTimeString()}`;
             } catch (e) { 
-                console.error("Pipeline failure:", e); 
+                console.error("Data load failed:", e); 
+                document.getElementById('sync-status').innerText = "LOAD ERROR";
             }
         }
 
@@ -525,26 +515,26 @@
             drawer.classList.add('open');
             document.getElementById('panel-content').innerHTML = `
                 <div style="margin-bottom:12px;">
-                    <label style="font-size:10px; color:#9ca3af; font-family:'JetBrains Mono';">ENTITY</label>
+                    <label style="font-size:10px; color:#9ca3af; font-family:'JetBrains Mono';">ORGANIZATION</label>
                     <div style="color:#38bdf8; font-weight:bold; font-size:15px;">${d.entity}</div>
                 </div>
                 <div style="margin-bottom:12px;">
-                    <label style="font-size:10px; color:#9ca3af; font-family:'JetBrains Mono';">VECTOR</label>
+                    <label style="font-size:10px; color:#9ca3af; font-family:'JetBrains Mono';">BREACH TYPE</label>
                     <div style="color:${d.color}; font-weight:bold;">${d.type}</div>
                 </div>
                 <div style="margin-bottom:12px;">
-                    <label style="font-size:10px; color:#9ca3af; font-family:'JetBrains Mono';">RECORDS EXPOSED</label>
+                    <label style="font-size:10px; color:#9ca3af; font-family:'JetBrains Mono';">RECORDS AFFECTED</label>
                     <div style="color:#ef4444; font-size:20px; font-weight:bold;">${d.totalExposed.toLocaleString()}</div>
                 </div>
                 <div style="margin-top:16px;">
-                    <a href="${d.hhsUrl}" target="_blank" style="color:#38bdf8; font-size:12px; font-family:'JetBrains Mono';">Verify on HHS Portal ↗</a>
+                    <a href="${d.hhsUrl}" target="_blank" style="color:#38bdf8; font-size:12px; font-family:'JetBrains Mono';">View Source Register ↗</a>
                 </div>
             `;
         }
 
         function closePanel() { document.getElementById('side-panel').classList.remove('open'); }
 
-        document.addEventListener('DOMContentLoaded', () => { renderLegend(); syncIntelligence(); });
+        document.addEventListener('DOMContentLoaded', () => { renderLegend(); loadData(); });
     </script>
 </body>
 </html>
