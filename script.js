@@ -28,6 +28,11 @@ const BREACH_COLOR_MAP = {
     'Other / Undetermined': '#6b7280'            
 };
 
+let mainChart;
+let allProcessedData = [];
+let selectedYear = 'AUTO';
+let currentMode = 'VECTOR'; 
+
 function getBreachColor(typeStr = '') {
     for (const [key, color] of Object.entries(BREACH_COLOR_MAP)) {
         if (typeStr.toLowerCase().includes(key.toLowerCase().split('/')[0])) {
@@ -52,24 +57,7 @@ function getHashJitter(str) {
         hash = (hash << 5) - hash + str.charCodeAt(i);
         hash |= 0;
     }
-    return ((hash % 100) / 100) * 0.4 - 0.2; // Slightly wider distribution offset
-}
-
-let mainChart;
-let allProcessedData = [];
-let selectedYear = 'AUTO';
-let currentMode = 'VECTOR'; 
-
-function renderLegend() {
-    const legendEl = document.getElementById('legend-container');
-    if (!legendEl) return;
-    legendEl.innerHTML = Object.entries(BREACH_COLOR_MAP)
-        .map(([type, color]) => `
-            <div style="display: flex; align-items: center; gap: 6px; color: #8b949e;">
-                <span style="width: 10px; height: 10px; background-color: ${color}; border-radius: 50%; display: inline-block;"></span>
-                <span>${type}</span>
-            </div>
-        `).join('');
+    return ((hash % 100) / 100) * 0.3 - 0.15;
 }
 
 function parseFlexibleDate(dateStr) {
@@ -91,6 +79,18 @@ function parseFlexibleDate(dateStr) {
         }
     }
     return null;
+}
+
+function renderLegend() {
+    const legendEl = document.getElementById('legend-container');
+    if (!legendEl) return;
+    legendEl.innerHTML = Object.entries(BREACH_COLOR_MAP)
+        .map(([type, color]) => `
+            <div style="display: flex; align-items: center; gap: 6px; color: #8b949e; font-size: 0.75rem; font-family: 'JetBrains Mono';">
+                <span style="width: 8px; height: 8px; background-color: ${color}; border-radius: 50%; display: inline-block;"></span>
+                <span>${type}</span>
+            </div>
+        `).join('');
 }
 
 function populateYearDropdown(data) {
@@ -123,7 +123,7 @@ async function syncIntelligence() {
         const raw = d3.csvParse(csv);
         
         if (!raw || raw.length === 0) {
-            document.getElementById('sync-status').innerText = "SHEET LOADING... RETRYING";
+            document.getElementById('sync-status').innerText = "SHEET LOADING...";
             return;
         }
 
@@ -131,34 +131,33 @@ async function syncIntelligence() {
         const processed = [];
 
         for (const r of raw) {
-            if (!r || !r["State"] || !r["Breach Submission Date"]) continue;
+            if (!r) continue;
 
             const affected = parseInt(r["Individuals Affected"], 10) || 0;
             grandTotal += affected;
 
-            const rawDateStr = r["Breach Submission Date"].trim();
+            const rawDateStr = (r["Breach Submission Date"] || r["Date"] || "").trim();
             const recordDate = parseFlexibleDate(rawDateStr);
             if (!recordDate) continue;
 
-            const radiusSize = affected > 0 ? Math.log10(affected) * 1.8 : 2.5;
             const breachType = r["Type of Breach"] || "Other / Undetermined";
+            const vectorRank = getVectorYIndex(breachType);
 
             const rawStates = r["Affected States"] || r["State"] || "Unknown";
             const affectedStatesList = rawStates.split(',').map(s => s.trim().toUpperCase());
-
-            const primaryState = r["State"].trim().toUpperCase();
+            const primaryState = (r["State"] || "XX").trim().toUpperCase();
             const stateRank = stateMap[primaryState] || 51;
-            const vectorRank = getVectorYIndex(breachType);
 
             const entityName = r["Name of Covered Entity"] || "Unknown Provider";
             const jitter = getHashJitter(entityName + rawDateStr);
+            const radiusSize = affected > 0 ? Math.log10(affected) * 1.8 : 2.5;
 
             processed.push({
                 x: recordDate, 
                 yState: stateRank,
                 yVector: vectorRank,
                 jitter: jitter,
-                r: Math.max(3, Math.min(radiusSize, 12)), // Scaled down max radius to avoid clutter
+                r: Math.max(3, Math.min(radiusSize, 11)),
                 entity: entityName,
                 state: primaryState,
                 affectedStates: affectedStatesList,
@@ -177,8 +176,8 @@ async function syncIntelligence() {
         updateFilteredChart();
         document.getElementById('sync-status').innerText = `SYSTEM ONLINE: ${new Date().toLocaleTimeString()}`;
     } catch (e) { 
-        console.error("Pipeline breakdown caught safely:", e); 
-        document.getElementById('sync-status').innerText = "DATA PIPELINE DISCONNECTED (RETRYING...)";
+        console.error("Pipeline fault:", e); 
+        document.getElementById('sync-status').innerText = "DATA OFFLINE (RETRYING)";
     } finally {
         const loader = document.getElementById('loader');
         if (loader) loader.style.display = 'none';
@@ -210,7 +209,7 @@ function updateFilteredChart() {
         y: (currentMode === 'VECTOR' ? d.yVector : d.yState) + d.jitter
     })).filter(d => d.y > 0);
 
-    const bgColors = chartData.map(d => d.color + '55'); // Higher transparency for dense clusters
+    const bgColors = chartData.map(d => d.color + '55');
     const borderColors = chartData.map(d => d.color);
 
     if (mainChart) {
@@ -229,7 +228,7 @@ function updateFilteredChart() {
         } else {
             mainChart.options.scales.y.min = 0;
             mainChart.options.scales.y.max = 51;
-            mainChart.options.scales.y.ticks.stepSize = 5; // Step by 5 to prevent Y-axis text overlap
+            mainChart.options.scales.y.ticks.stepSize = 5; // Step by 5 to prevent text overlap
             mainChart.options.scales.y.ticks.callback = function(v) {
                 const rounded = Math.round(v);
                 return reverseStateMap[rounded] ? `${reverseStateMap[rounded]} (#${rounded})` : '';
@@ -237,11 +236,9 @@ function updateFilteredChart() {
         }
 
         if (selectedYear !== 'ALL' && filteredData.length > 0) {
-            // Adapt view bounds strictly to months with data
             const minMonth = new Date(Math.min(...filteredData.map(d => d.x.getTime())));
             const maxMonth = new Date(Math.max(...filteredData.map(d => d.x.getTime())));
             
-            // Set bounds with padding
             mainChart.options.scales.x.min = new Date(minMonth.getFullYear(), minMonth.getMonth(), 1);
             mainChart.options.scales.x.max = new Date(maxMonth.getFullYear(), maxMonth.getMonth() + 1, 0);
             mainChart.options.scales.x.time.unit = 'month';
@@ -285,7 +282,7 @@ function initChart(data) {
             responsive: true,
             maintainAspectRatio: false,
             animation: false,
-            layout: { padding: { right: 30, left: 10, top: 20, bottom: 10 } },
+            layout: { padding: { right: 20, left: 10, top: 15, bottom: 10 } },
             scales: {
                 x: {
                     type: 'time',
@@ -343,3 +340,66 @@ function initChart(data) {
         }
     });
 }
+
+function openProjectBriefing() {
+    const drawer = document.getElementById('side-panel');
+    drawer.classList.add('open');
+    document.getElementById('panel-content').innerHTML = `
+        <div style="background: rgba(2, 132, 199, 0.1); padding: 12px; border-left: 3px solid #0284c7; border-radius: 4px;">
+            <strong style="font-family:'JetBrains Mono'; color:#00d2ff;">[SYSTEM METHODOLOGY]</strong>
+            <p style="margin-top:10px; line-height:1.5; color:#c9d1d9; font-size:12px;">
+                All security event records are fetched live from the official 
+                <a href="https://ocrportal.hhs.gov/ocr/breach/breach_report.jsf" target="_blank" style="color:#38bdf8; text-decoration:underline;">
+                    U.S. HHS OCR Public Breach Register
+                </a>.
+                <br><br>
+                <b>Key Features:</b>
+                <ul style="padding-left:16px; margin-top:6px; color:#8b949e;">
+                    <li><b>Jitter Offsets:</b> Small vertical positional offsets prevent stacked points from colliding.</li>
+                    <li><b>Y-Axis Step Bounds:</b> State population views group indices by 5-step increments for clean typography.</li>
+                </ul>
+            </p>
+        </div>
+    `;
+}
+
+function openDrawer(d) {
+    const drawer = document.getElementById('side-panel');
+    drawer.classList.add('open');
+
+    const multiStateDisplay = (d.affectedStates && d.affectedStates.length > 0) 
+        ? d.affectedStates.join(', ')
+        : d.state;
+
+    document.getElementById('panel-content').innerHTML = `
+        <div style="margin-bottom:12px;"><label style="font-size:10px; color:#8b949e; font-family:'JetBrains Mono';">TARGET ENTITY</label><div style="color:#00d2ff; font-weight:bold; font-size:15px;">${d.entity}</div></div>
+        
+        <div style="background:#161b22; padding:12px; border-radius:6px; margin-bottom:12px; border:1px solid rgba(255,255,255,0.05);">
+            <div style="color:${d.color}; font-weight:bold; font-size:12px; margin-bottom:6px; font-family:'JetBrains Mono';">
+                VECTOR: ${d.type}
+            </div>
+            <p style="font-size:12px; color:#8b949e; margin: 0;"><strong>Impacted Regions:</strong> ${multiStateDisplay}</p>
+        </div>
+
+        <div style="margin-bottom:12px;"><label style="font-size:10px; color:#8b949e; font-family:'JetBrains Mono';">PRIMARY STATE RANK</label><div style="font-size:13px;">${d.state} (Rank #${d.yState || 'N/A'})</div></div>
+        <div style="margin-bottom:12px;"><label style="font-size:10px; color:#8b949e; font-family:'JetBrains Mono';">RECORDS COMPROMISED</label><div style="color:#ef4444; font-size:22px; font-weight:700;">${d.totalExposed.toLocaleString()}</div></div>
+        <div style="margin-bottom:12px;"><label style="font-size:10px; color:#8b949e; font-family:'JetBrains Mono';">INCIDENT DATE</label><div style="font-size:13px;">${d.date}</div></div>
+        
+        <div style="margin-top:16px; padding-top:12px; border-top:1px solid rgba(255,255,255,0.1);">
+            <a href="${d.hhsUrl}" target="_blank" rel="noopener noreferrer" style="color:#38bdf8; text-decoration:underline; font-size:11px; font-family:'JetBrains Mono';">
+                Verify on U.S. HHS OCR Register ↗
+            </a>
+        </div>
+    `;
+}
+
+function closePanel() { 
+    document.getElementById('side-panel').classList.remove('open'); 
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    renderLegend();
+});
+
+setInterval(syncIntelligence, 15000);
+syncIntelligence();
