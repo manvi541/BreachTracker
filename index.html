@@ -377,24 +377,27 @@
             return vectorMap['Other / Undetermined'];
         }
 
+        // Updated date parser handles 2-digit years (e.g. 07/15/26 -> 2026)
         function parseFlexibleDate(dateStr) {
             if (!dateStr) return null;
             let str = String(dateStr).trim();
+
+            const parts = str.split(/[\/\-\.]/);
+            if (parts.length === 3) {
+                let m = parseInt(parts[0], 10) - 1;
+                let day = parseInt(parts[1], 10);
+                let y = parseInt(parts[2], 10);
+
+                if (y < 100) {
+                    y += 2000;
+                }
+
+                const parsedDate = new Date(y, m, day);
+                if (!isNaN(parsedDate.getTime())) return parsedDate;
+            }
+
             let d = new Date(str);
             if (!isNaN(d.getTime())) return d;
-
-            const cleanStr = str.replace(/[^0-9\/]/g, '');
-            if (cleanStr.includes('/')) {
-                const parts = cleanStr.split('/');
-                if (parts.length === 3) {
-                    const m = parseInt(parts[0], 10) - 1;
-                    const day = parseInt(parts[1], 10);
-                    let y = parseInt(parts[2], 10);
-                    if (y < 100) y += (y > 50 ? 1900 : 2000);
-                    const parsedDate = new Date(y, m, day);
-                    if (!isNaN(parsedDate.getTime())) return parsedDate;
-                }
-            }
             return null;
         }
 
@@ -508,12 +511,18 @@
                     mainChart.options.scales.y.ticks.callback = v => reverseStateMap[Math.round(v)] || '';
                 }
 
-                if (selectedYear !== 'ALL') {
-                    const yearNum = parseInt(selectedYear, 10);
-                    mainChart.options.scales.x.min = new Date(yearNum, 0, 1);
-                    mainChart.options.scales.x.max = new Date(yearNum, 11, 31);
+                // Auto-fit X-axis range to zoomed data bounds if points exist
+                if (chartData.length > 0) {
+                    const times = chartData.map(d => d.x.getTime());
+                    const minTime = Math.min(...times);
+                    const maxTime = Math.max(...times);
+
+                    // Add a 7-day padding around the date bounds for visual clarity
+                    const paddingMs = 7 * 24 * 60 * 60 * 1000;
+                    mainChart.options.scales.x.min = new Date(minTime - paddingMs);
+                    mainChart.options.scales.x.max = new Date(maxTime + paddingMs);
                     mainChart.options.scales.x.time.unit = 'month';
-                    mainChart.options.scales.x.time.displayFormats = { month: 'MMM' };
+                    mainChart.options.scales.x.time.displayFormats = { month: 'MMM d' };
                 } else {
                     delete mainChart.options.scales.x.min;
                     delete mainChart.options.scales.x.max;
@@ -546,7 +555,7 @@
                     scales: {
                         x: {
                             type: 'time',
-                            time: { unit: 'month', displayFormats: { year: 'yyyy', month: 'MMM' } },
+                            time: { unit: 'month', displayFormats: { year: 'yyyy', month: 'MMM d' } },
                             grid: { color: 'rgba(255, 255, 255, 0.04)' },
                             ticks: { color: '#9ca3af', font: { family: 'JetBrains Mono' }, autoSkip: false }
                         },
@@ -586,7 +595,7 @@
                     <ul style="padding-left:16px; margin-bottom:12px;">
                         <li><strong>Extraction:</strong> Synchronized with published CSV feeds.</li>
                         <li><strong>Transformation:</strong> Standardizes dates across varied locale formats, cleans string representations, and indexes breach vectors into discrete analytical tracks.</li>
-                        <li><strong>Logarithmic Scaling:</strong> Record counts are scaled via $R = \log_{10}(A) \times 1.5$ to visually balance single-incident impacts without masking multi-million-record outliers.</li>
+                        <li><strong>Logarithmic Scaling:</strong> Record counts are scaled via logarithmic equations to visually balance single-incident impacts without masking multi-million-record outliers.</li>
                     </ul>
                 </div>
             `;
