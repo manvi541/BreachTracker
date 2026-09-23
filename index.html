@@ -8,7 +8,7 @@
     <!-- Typography -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains-Mono:wght@400;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
     
     <!-- Libraries -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -51,8 +51,18 @@
             padding: 24px;
             display: flex;
             flex-direction: column;
-            gap: 20px;
+            gap: 16px;
             flex-shrink: 0;
+            overflow-y: auto;
+        }
+
+        .brand-badge {
+            font-family: var(--font-mono);
+            font-size: 0.7rem;
+            font-weight: 700;
+            color: var(--accent-blue);
+            letter-spacing: 1px;
+            margin-bottom: 4px;
         }
 
         .brand h1 { font-size: 1.4rem; font-weight: 700; line-height: 1.2; }
@@ -82,6 +92,40 @@
 
         .metric-desc { font-size: 0.78rem; color: var(--text-secondary); }
 
+        .sidebar-menu {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            margin-top: 4px;
+        }
+
+        .menu-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 12px;
+            border-radius: 6px;
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-size: 0.85rem;
+            font-weight: 500;
+            transition: all 0.2s ease;
+            background: var(--bg-card);
+            border: 1px solid var(--border-subtle);
+            cursor: pointer;
+        }
+
+        .menu-item:hover {
+            background-color: rgba(56, 189, 248, 0.1);
+            color: var(--accent-blue);
+            border-color: var(--accent-blue);
+        }
+
+        .menu-item.highlight {
+            color: #60a5fa;
+            border-color: rgba(96, 165, 250, 0.3);
+        }
+
         .source-box {
             background: rgba(56, 189, 248, 0.05);
             border: 1px solid rgba(56, 189, 248, 0.2);
@@ -102,6 +146,7 @@
             display: flex;
             align-items: center;
             gap: 8px;
+            padding-top: 8px;
         }
 
         .status-dot {
@@ -195,6 +240,7 @@
             transition: right 0.3s ease;
             z-index: 100;
             padding: 24px;
+            overflow-y: auto;
         }
 
         .drawer-panel.open { right: 0; }
@@ -206,6 +252,7 @@
     <div class="app-container">
         <aside class="sidebar">
             <div class="brand">
+                <div class="brand-badge">🛡️ INTEL RADAR</div>
                 <h1>Healthcare<br>Breach Tracker</h1>
             </div>
 
@@ -214,6 +261,15 @@
                 <div id="total-affected" class="metric-number">---</div>
                 <p class="metric-desc">Documented across all registered breach events.</p>
             </div>
+
+            <nav class="sidebar-menu">
+                <button class="menu-item" onclick="openProjectBriefing()">
+                    <span class="icon">ℹ️</span> Explore About Tracker
+                </button>
+                <a href="https://medisecproject.org/#projects" target="_blank" rel="noopener noreferrer" class="menu-item highlight">
+                    <span class="icon">🔒</span> MediSec Research Projects ↗
+                </a>
+            </nav>
 
             <div class="source-box">
                 <strong>DATA CITATION & SOURCE:</strong>
@@ -260,7 +316,7 @@
 
         <div id="side-panel" class="drawer-panel">
             <div class="drawer-header">
-                <h3>INCIDENT DETAILS</h3>
+                <h3 id="drawer-title">INCIDENT DETAILS</h3>
                 <button class="drawer-close" onclick="closePanel()">×</button>
             </div>
             <div id="panel-content"></div>
@@ -458,10 +514,18 @@
                     mainChart.options.scales.y.ticks.callback = v => reverseStateMap[Math.round(v)] || '';
                 }
 
-                if (selectedYear === 'ALL') {
-                    mainChart.options.scales.x.time.unit = 'year';
-                } else {
+                if (selectedYear !== 'ALL') {
+                    const yearNum = parseInt(selectedYear, 10);
+                    // FORCE FULL JAN 1 TO DEC 31 RANGE FOR SELECTED YEAR
+                    mainChart.options.scales.x.min = new Date(yearNum, 0, 1);
+                    mainChart.options.scales.x.max = new Date(yearNum, 11, 31);
                     mainChart.options.scales.x.time.unit = 'month';
+                    mainChart.options.scales.x.time.displayFormats = { month: 'MMM' };
+                } else {
+                    delete mainChart.options.scales.x.min;
+                    delete mainChart.options.scales.x.max;
+                    mainChart.options.scales.x.time.unit = 'year';
+                    mainChart.options.scales.x.time.displayFormats = { year: 'yyyy' };
                 }
 
                 mainChart.update('none');
@@ -491,7 +555,7 @@
                             type: 'time',
                             time: { unit: 'month', displayFormats: { year: 'yyyy', month: 'MMM' } },
                             grid: { color: 'rgba(255, 255, 255, 0.04)' },
-                            ticks: { color: '#9ca3af', font: { family: 'JetBrains Mono' } }
+                            ticks: { color: '#9ca3af', font: { family: 'JetBrains Mono' }, autoSkip: false }
                         },
                         y: {
                             min: 0.5, max: 6.5,
@@ -510,7 +574,33 @@
             });
         }
 
+        function openProjectBriefing() {
+            document.getElementById('drawer-title').innerText = "TRACKER METHODOLOGY & ETL";
+            const drawer = document.getElementById('side-panel');
+            drawer.classList.add('open');
+            document.getElementById('panel-content').innerHTML = `
+                <div style="background: rgba(56, 189, 248, 0.1); padding: 12px; border-left: 3px solid #38bdf8; border-radius: 4px; margin-bottom: 16px;">
+                    <strong style="font-family:'JetBrains Mono'; color:#38bdf8;">[ETL PIPELINE METHODOLOGY]</strong>
+                    <p style="margin-top:8px; line-height:1.5; color:#9ca3af; font-size:12px;">
+                        Data is extracted, transformed, and loaded directly from the public 
+                        <a href="https://ocrportal.hhs.gov/ocr/breach/breach_report.jsf" target="_blank" style="color:#38bdf8; text-decoration:underline;">
+                            U.S. HHS OCR Breach Register
+                        </a>.
+                    </p>
+                </div>
+                <div style="color:#9ca3af; font-size:12px; line-height:1.6;">
+                    <h4 style="color:#f3f4f6; margin-bottom:6px; font-family:'JetBrains Mono';">Key Data Normalizations:</h4>
+                    <ul style="padding-left:16px; margin-bottom:12px;">
+                        <li><strong>Extraction:</strong> Synchronized with published CSV feeds.</li>
+                        <li><strong>Transformation:</strong> Standardizes dates across varied locale formats, cleans string representations, and indexes breach vectors into discrete analytical tracks.</li>
+                        <li><strong>Logarithmic Scaling:</strong> Record counts are scaled via $R = \log_{10}(A) \times 1.8$ to visually balance single-incident impacts without masking multi-million-record outliers.</li>
+                    </ul>
+                </div>
+            `;
+        }
+
         function openDrawer(d) {
+            document.getElementById('drawer-title').innerText = "INCIDENT DETAILS";
             const drawer = document.getElementById('side-panel');
             drawer.classList.add('open');
             document.getElementById('panel-content').innerHTML = `
@@ -525,6 +615,10 @@
                 <div style="margin-bottom:12px;">
                     <label style="font-size:10px; color:#9ca3af; font-family:'JetBrains Mono';">RECORDS AFFECTED</label>
                     <div style="color:#ef4444; font-size:20px; font-weight:bold;">${d.totalExposed.toLocaleString()}</div>
+                </div>
+                <div style="margin-bottom:12px;">
+                    <label style="font-size:10px; color:#9ca3af; font-family:'JetBrains Mono';">INCIDENT DATE</label>
+                    <div style="font-size:13px; margin-top:2px;">${d.date}</div>
                 </div>
                 <div style="margin-top:16px;">
                     <a href="${d.hhsUrl}" target="_blank" style="color:#38bdf8; font-size:12px; font-family:'JetBrains Mono';">View Source Register ↗</a>
