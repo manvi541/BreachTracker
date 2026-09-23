@@ -4,34 +4,34 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Healthcare Breach Intelligence Radar</title>
-    <link rel="stylesheet" href="style.css">
     
-    <!-- Professional Typography -->
+    <!-- Design & Typography Dependencies -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,400;0,600;0,700;1,400&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
     
-    <!-- Dependencies -->
+    <!-- Visualization Libraries -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns"></script>
     <script src="https://d3js.org/d3.v7.min.js"></script>
+    
+    <link rel="stylesheet" href="style.css">
 </head>
 <body>
     <div class="app-shell">
         
-        <!-- SIDEBAR NAVIGATION -->
+        <!-- SIDEBAR -->
         <aside class="sidebar-nav">
             <div class="brand-block">
                 <div class="brand-icon">🛡️</div>
                 <div class="brand-text">
                     <h1>Healthcare Breach Tracker</h1>
-                    <span class="badge-intel">INTEL RADAR</span>
+                    <span class="badge-intel">STANFORD INTEL</span>
                 </div>
             </div>
 
-            <!-- KEY METRIC CARD -->
             <div class="metric-card">
-                <span class="metric-label">TOTAL RECORDS EXPOSED</span>
+                <span class="metric-label">TOTAL COMPROMISED RECORDS</span>
                 <div id="total-affected" class="metric-value">---</div>
                 <p class="metric-subtext">Documented across all registered incident vectors.</p>
             </div>
@@ -41,27 +41,26 @@
                     <span class="icon">📊</span> Breach Analytics
                 </a>
                 <a href="https://medisecproject.org/#projects" target="_blank" class="nav-link highlight">
-                    <span class="icon">🔒</span> Healthcare Cybersecurity Report ↗
+                    <span class="icon">🔒</span> Security Report ↗
                 </a>
             </nav>
 
             <div class="sidebar-footer">
                 <div class="status-indicator">
                     <span class="pulse-dot"></span>
-                    <span id="sync-status">SYNCING WITH HHS...</span>
+                    <span id="sync-status">INITIALIZING...</span>
                 </div>
             </div>
         </aside>
 
-        <!-- MAIN VIEWPORT -->
+        <!-- MAIN DASHBOARD -->
         <main class="viewport-content">
             
-            <!-- TOP BAR CONTROLS -->
             <header class="dashboard-header">
                 <div class="header-titles">
                     <h2>Incident Distribution Radar</h2>
                     <p class="citation-text">
-                        Source: U.S. Department of Health and Human Services (HHS) Office for Civil Rights — 
+                        Data Source: U.S. Department of Health and Human Services (HHS) Office for Civil Rights — 
                         <a href="https://ocrportal.hhs.gov/ocr/breach/breach_report.jsf" target="_blank" rel="noopener noreferrer">
                             Official Public Breach Register ↗
                         </a>
@@ -75,7 +74,6 @@
                 </div>
             </header>
 
-            <!-- DASHBOARD CONTROL TOOLBAR -->
             <div class="toolbar">
                 <div class="control-group">
                     <span class="control-label">VIEW MODE:</span>
@@ -90,35 +88,31 @@
                 </div>
 
                 <div class="control-group">
-                    <label for="year-select" class="control-label">TIMELINE FILTER:</label>
+                    <label for="year-select" class="control-label">FILTER YEAR:</label>
                     <select id="year-select" class="styled-select" onchange="onYearChange(this.value)">
                         <option value="LOADING">Loading dataset years...</option>
                     </select>
                 </div>
             </div>
 
-            <!-- MAIN CHART CANVAS CONTAINER -->
             <div class="chart-wrapper">
                 <div id="loader" class="spinner"></div>
                 <canvas id="breachChart"></canvas>
             </div>
 
-            <!-- COLOR LEGEND BAR -->
             <footer class="legend-bar">
                 <span class="legend-title">INCIDENT CATEGORIES:</span>
                 <div id="legend-container" class="legend-items"></div>
             </footer>
         </main>
 
-        <!-- DETAIL SLIDE-OUT PANEL -->
+        <!-- SLIDE-OUT PANEL -->
         <div id="side-panel" class="intel-drawer">
             <div class="drawer-header">
                 <h3>INCIDENT TERMINAL DATA</h3>
                 <button class="close-btn" onclick="closePanel()">×</button>
             </div>
-            <div id="panel-content" class="drawer-body">
-                <!-- Dynamic details load here on dot click -->
-            </div>
+            <div id="panel-content" class="drawer-body"></div>
         </div>
     </div>
     
