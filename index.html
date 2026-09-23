@@ -5,12 +5,12 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Healthcare Breach Tracker</title>
     
-    <!-- Typography -->
+    <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=JetBrains-Mono:wght@400;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
     
-    <!-- Libraries -->
+    <!-- Dependencies -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns"></script>
     <script src="https://d3js.org/d3.v7.min.js"></script>
@@ -297,7 +297,11 @@
                 <div class="toolbar-group">
                     <label for="year-select" class="label">TIMELINE RANGE:</label>
                     <select id="year-select" class="custom-select" onchange="onYearChange(this.value)">
-                        <option value="LOADING">Loading timeline...</option>
+                        <option value="2026">2026</option>
+                        <option value="2025">2025</option>
+                        <option value="2024">2024</option>
+                        <option value="2023">2023</option>
+                        <option value="ALL">All Available Years (2023–2026)</option>
                     </select>
                 </div>
             </div>
@@ -356,7 +360,7 @@
 
         let mainChart;
         let allProcessedData = [];
-        let selectedYear = 'AUTO';
+        let selectedYear = '2026';
         let currentMode = 'VECTOR';
 
         function getBreachColor(typeStr = '') {
@@ -379,14 +383,16 @@
             let d = new Date(str);
             if (!isNaN(d.getTime())) return d;
 
-            if (str.includes('/')) {
-                const parts = str.split('/');
+            const cleanStr = str.replace(/[^0-9\/]/g, '');
+            if (cleanStr.includes('/')) {
+                const parts = cleanStr.split('/');
                 if (parts.length === 3) {
                     const m = parseInt(parts[0], 10) - 1;
                     const day = parseInt(parts[1], 10);
                     let y = parseInt(parts[2], 10);
-                    if (y < 100) y += 2000;
-                    return new Date(y, m, day);
+                    if (y < 100) y += (y > 50 ? 1900 : 2000);
+                    const parsedDate = new Date(y, m, day);
+                    if (!isNaN(parsedDate.getTime())) return parsedDate;
                 }
             }
             return null;
@@ -404,25 +410,6 @@
                 `).join('');
         }
 
-        function populateYearDropdown(data) {
-            const yearSelect = document.getElementById('year-select');
-            if (!yearSelect) return;
-
-            const availableYears = Array.from(new Set(data.map(d => d.x.getFullYear())))
-                .filter(y => !isNaN(y))
-                .sort((a, b) => b - a);
-
-            if (availableYears.length === 0) return;
-
-            if (selectedYear === 'AUTO') selectedYear = String(availableYears[0]);
-
-            let optionsHTML = availableYears.map(y => `<option value="${y}">${y}</option>`).join('');
-            optionsHTML += `<option value="ALL">All Available Years (${availableYears[availableYears.length - 1]}–${availableYears[0]})</option>`;
-            
-            yearSelect.innerHTML = optionsHTML;
-            yearSelect.value = selectedYear;
-        }
-
         async function loadData() {
             try {
                 const response = await fetch(`${CSV_URL}&nocache=${Date.now()}`);
@@ -434,23 +421,31 @@
 
                 for (const r of raw) {
                     if (!r) continue;
-                    const affected = parseInt(r["Individuals Affected"], 10) || 0;
-                    grandTotal += affected;
 
-                    const rawDateStr = (r["Breach Submission Date"] || r["Date"] || "").trim();
+                    const rawDateStr = (
+                        r["Breach Submission Date"] || 
+                        r["Date"] || 
+                        r["Submission Date"] || 
+                        r["Date of Breach"] || 
+                        ""
+                    ).trim();
+
                     const recordDate = parseFlexibleDate(rawDateStr);
                     if (!recordDate) continue;
 
-                    const breachType = r["Type of Breach"] || "Other / Undetermined";
+                    const affected = parseInt(r["Individuals Affected"] || r["Affected"] || 0, 10) || 0;
+                    grandTotal += affected;
+
+                    const breachType = r["Type of Breach"] || r["Breach Type"] || "Other / Undetermined";
                     const primaryState = (r["State"] || "XX").trim().toUpperCase();
 
                     processed.push({
                         x: recordDate, 
                         yState: stateMap[primaryState] || 51,
                         yVector: getVectorYIndex(breachType),
-                        jitter: ((Math.random() * 0.3) - 0.15),
-                        r: Math.max(3, Math.min(affected > 0 ? Math.log10(affected) * 1.8 : 2.5, 10)),
-                        entity: r["Name of Covered Entity"] || "Unknown Entity",
+                        jitter: ((Math.random() * 0.35) - 0.175),
+                        r: Math.max(2.5, Math.min(affected > 0 ? Math.log10(affected) * 1.5 : 2, 8)),
+                        entity: r["Name of Covered Entity"] || r["Covered Entity"] || "Unknown Entity",
                         state: primaryState,
                         type: breachType,
                         color: getBreachColor(breachType),
@@ -463,7 +458,6 @@
                 allProcessedData = processed.sort((a, b) => a.x.getTime() - b.x.getTime());
                 document.getElementById('total-affected').innerText = grandTotal.toLocaleString();
 
-                populateYearDropdown(allProcessedData);
                 updateFilteredChart();
                 document.getElementById('sync-status').innerText = `UPDATED: ${new Date().toLocaleTimeString()}`;
             } catch (e) { 
@@ -516,7 +510,6 @@
 
                 if (selectedYear !== 'ALL') {
                     const yearNum = parseInt(selectedYear, 10);
-                    // FORCE FULL JAN 1 TO DEC 31 RANGE FOR SELECTED YEAR
                     mainChart.options.scales.x.min = new Date(yearNum, 0, 1);
                     mainChart.options.scales.x.max = new Date(yearNum, 11, 31);
                     mainChart.options.scales.x.time.unit = 'month';
@@ -593,7 +586,7 @@
                     <ul style="padding-left:16px; margin-bottom:12px;">
                         <li><strong>Extraction:</strong> Synchronized with published CSV feeds.</li>
                         <li><strong>Transformation:</strong> Standardizes dates across varied locale formats, cleans string representations, and indexes breach vectors into discrete analytical tracks.</li>
-                        <li><strong>Logarithmic Scaling:</strong> Record counts are scaled via $R = \log_{10}(A) \times 1.8$ to visually balance single-incident impacts without masking multi-million-record outliers.</li>
+                        <li><strong>Logarithmic Scaling:</strong> Record counts are scaled via $R = \log_{10}(A) \times 1.5$ to visually balance single-incident impacts without masking multi-million-record outliers.</li>
                     </ul>
                 </div>
             `;
