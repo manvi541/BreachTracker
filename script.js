@@ -19,19 +19,20 @@ const vectorMap = {
     "Other / Undetermined": 6
 };
 
+// MEANINGFUL COLOR ENCODING BY CATEGORY
 const BREACH_COLOR_MAP = {
-    'Hacking/IT Incident': '#ef4444',          
-    'Unauthorized Access/Disclosure': '#f59e0b',
-    'Theft': '#10b981',                          
-    'Loss': '#3b82f6',                           
-    'Improper Disposal': '#8b5cf6',              
-    'Other / Undetermined': '#6b7280'            
+    'Hacking/IT Incident': '#ef4444',          // Red
+    'Unauthorized Access/Disclosure': '#f59e0b',// Amber
+    'Theft': '#10b981',                          // Green
+    'Loss': '#3b82f6',                           // Blue
+    'Improper Disposal': '#8b5cf6',              // Purple
+    'Other / Undetermined': '#6b7280'            // Grey
 };
 
 let mainChart;
 let allProcessedData = [];
 let selectedYear = 'AUTO';
-let currentMode = 'VECTOR'; 
+let currentMode = 'VECTOR'; // Default layout per user request
 
 function getBreachColor(typeStr = '') {
     for (const [key, color] of Object.entries(BREACH_COLOR_MAP)) {
@@ -86,7 +87,7 @@ function renderLegend() {
     if (!legendEl) return;
     legendEl.innerHTML = Object.entries(BREACH_COLOR_MAP)
         .map(([type, color]) => `
-            <div style="display: flex; align-items: center; gap: 6px; color: #8b949e; font-size: 0.75rem; font-family: 'JetBrains Mono';">
+            <div style="display: flex; align-items: center; gap: 6px; color: #9ca3af; font-size: 0.75rem; font-family: 'JetBrains Mono';">
                 <span style="width: 8px; height: 8px; background-color: ${color}; border-radius: 50%; display: inline-block;"></span>
                 <span>${type}</span>
             </div>
@@ -108,7 +109,7 @@ function populateYearDropdown(data) {
     }
 
     let optionsHTML = availableYears.map(y => `<option value="${y}">${y}</option>`).join('');
-    optionsHTML += `<option value="ALL">All Years (${availableYears[availableYears.length - 1]}–${availableYears[0]})</option>`;
+    optionsHTML += `<option value="ALL">All Available Years (${availableYears[availableYears.length - 1]}–${availableYears[0]})</option>`;
     
     yearSelect.innerHTML = optionsHTML;
     yearSelect.value = selectedYear;
@@ -157,7 +158,7 @@ async function syncIntelligence() {
                 yState: stateRank,
                 yVector: vectorRank,
                 jitter: jitter,
-                r: Math.max(3, Math.min(radiusSize, 11)),
+                r: Math.max(3, Math.min(radiusSize, 10)),
                 entity: entityName,
                 state: primaryState,
                 affectedStates: affectedStatesList,
@@ -176,7 +177,7 @@ async function syncIntelligence() {
         updateFilteredChart();
         document.getElementById('sync-status').innerText = `SYSTEM ONLINE: ${new Date().toLocaleTimeString()}`;
     } catch (e) { 
-        console.error("Pipeline fault:", e); 
+        console.error("Pipeline breakdown:", e); 
         document.getElementById('sync-status').innerText = "DATA OFFLINE (RETRYING)";
     } finally {
         const loader = document.getElementById('loader');
@@ -228,13 +229,14 @@ function updateFilteredChart() {
         } else {
             mainChart.options.scales.y.min = 0;
             mainChart.options.scales.y.max = 51;
-            mainChart.options.scales.y.ticks.stepSize = 5; // Step by 5 to prevent text overlap
+            mainChart.options.scales.y.ticks.stepSize = 5;
             mainChart.options.scales.y.ticks.callback = function(v) {
                 const rounded = Math.round(v);
                 return reverseStateMap[rounded] ? `${reverseStateMap[rounded]} (#${rounded})` : '';
             };
         }
 
+        // HISTORICAL TIME RANGE SCALING
         if (selectedYear !== 'ALL' && filteredData.length > 0) {
             const minMonth = new Date(Math.min(...filteredData.map(d => d.x.getTime())));
             const maxMonth = new Date(Math.max(...filteredData.map(d => d.x.getTime())));
@@ -282,7 +284,7 @@ function initChart(data) {
             responsive: true,
             maintainAspectRatio: false,
             animation: false,
-            layout: { padding: { right: 20, left: 10, top: 15, bottom: 10 } },
+            layout: { padding: { right: 10, left: 10, top: 10, bottom: 0 } },
             scales: {
                 x: {
                     type: 'time',
@@ -292,14 +294,14 @@ function initChart(data) {
                     },
                     grid: { color: 'rgba(255, 255, 255, 0.04)', borderDash: [2, 2] },
                     ticks: { 
-                        color: '#8b949e', 
+                        color: '#9ca3af', 
                         font: { family: 'JetBrains Mono', size: 10 },
                         autoSkip: false
                     },
                     title: {
                         display: true,
                         text: 'TIMELINE OF INCIDENTS',
-                        color: '#6e7681',
+                        color: '#6b7280',
                         font: { family: 'JetBrains Mono', size: 10, weight: 'bold' }
                     }
                 },
@@ -308,7 +310,7 @@ function initChart(data) {
                     max: 6.5,
                     grid: { color: 'rgba(255, 255, 255, 0.03)' },
                     ticks: {
-                        color: '#8b949e',
+                        color: '#9ca3af',
                         font: { size: 10, family: 'JetBrains Mono' },
                         stepSize: 1,
                         autoSkip: false,
@@ -322,10 +324,10 @@ function initChart(data) {
             plugins: {
                 legend: { display: false },
                 tooltip: {
-                    backgroundColor: '#161b22',
+                    backgroundColor: '#1c2433',
                     titleFont: { family: 'JetBrains Mono', size: 11 },
                     bodyFont: { family: 'Plus Jakarta Sans', size: 12 },
-                    borderColor: 'rgba(0, 210, 255, 0.4)',
+                    borderColor: 'rgba(56, 189, 248, 0.3)',
                     borderWidth: 1,
                     padding: 12,
                     displayColors: false,
@@ -345,19 +347,13 @@ function openProjectBriefing() {
     const drawer = document.getElementById('side-panel');
     drawer.classList.add('open');
     document.getElementById('panel-content').innerHTML = `
-        <div style="background: rgba(2, 132, 199, 0.1); padding: 12px; border-left: 3px solid #0284c7; border-radius: 4px;">
-            <strong style="font-family:'JetBrains Mono'; color:#00d2ff;">[SYSTEM METHODOLOGY]</strong>
-            <p style="margin-top:10px; line-height:1.5; color:#c9d1d9; font-size:12px;">
-                All security event records are fetched live from the official 
+        <div style="background: rgba(56, 189, 248, 0.1); padding: 12px; border-left: 3px solid #38bdf8; border-radius: 4px; margin-bottom: 16px;">
+            <strong style="font-family:'JetBrains Mono'; color:#38bdf8;">[SYSTEM METHODOLOGY]</strong>
+            <p style="margin-top:8px; line-height:1.5; color:#9ca3af; font-size:12px;">
+                Records are loaded live directly from the official 
                 <a href="https://ocrportal.hhs.gov/ocr/breach/breach_report.jsf" target="_blank" style="color:#38bdf8; text-decoration:underline;">
                     U.S. HHS OCR Public Breach Register
                 </a>.
-                <br><br>
-                <b>Key Features:</b>
-                <ul style="padding-left:16px; margin-top:6px; color:#8b949e;">
-                    <li><b>Jitter Offsets:</b> Small vertical positional offsets prevent stacked points from colliding.</li>
-                    <li><b>Y-Axis Step Bounds:</b> State population views group indices by 5-step increments for clean typography.</li>
-                </ul>
             </p>
         </div>
     `;
@@ -372,18 +368,30 @@ function openDrawer(d) {
         : d.state;
 
     document.getElementById('panel-content').innerHTML = `
-        <div style="margin-bottom:12px;"><label style="font-size:10px; color:#8b949e; font-family:'JetBrains Mono';">TARGET ENTITY</label><div style="color:#00d2ff; font-weight:bold; font-size:15px;">${d.entity}</div></div>
+        <div style="margin-bottom:12px;">
+            <label style="font-size:10px; color:#9ca3af; font-family:'JetBrains Mono';">TARGET ENTITY</label>
+            <div style="color:#38bdf8; font-weight:bold; font-size:15px; margin-top:2px;">${d.entity}</div>
+        </div>
         
-        <div style="background:#161b22; padding:12px; border-radius:6px; margin-bottom:12px; border:1px solid rgba(255,255,255,0.05);">
+        <div style="background:#1c2433; padding:12px; border-radius:6px; margin-bottom:12px; border:1px solid rgba(255,255,255,0.05);">
             <div style="color:${d.color}; font-weight:bold; font-size:12px; margin-bottom:6px; font-family:'JetBrains Mono';">
                 VECTOR: ${d.type}
             </div>
-            <p style="font-size:12px; color:#8b949e; margin: 0;"><strong>Impacted Regions:</strong> ${multiStateDisplay}</p>
+            <p style="font-size:12px; color:#9ca3af; margin: 0;"><strong>Impacted Regions:</strong> ${multiStateDisplay}</p>
         </div>
 
-        <div style="margin-bottom:12px;"><label style="font-size:10px; color:#8b949e; font-family:'JetBrains Mono';">PRIMARY STATE RANK</label><div style="font-size:13px;">${d.state} (Rank #${d.yState || 'N/A'})</div></div>
-        <div style="margin-bottom:12px;"><label style="font-size:10px; color:#8b949e; font-family:'JetBrains Mono';">RECORDS COMPROMISED</label><div style="color:#ef4444; font-size:22px; font-weight:700;">${d.totalExposed.toLocaleString()}</div></div>
-        <div style="margin-bottom:12px;"><label style="font-size:10px; color:#8b949e; font-family:'JetBrains Mono';">INCIDENT DATE</label><div style="font-size:13px;">${d.date}</div></div>
+        <div style="margin-bottom:12px;">
+            <label style="font-size:10px; color:#9ca3af; font-family:'JetBrains Mono';">PRIMARY STATE RANK</label>
+            <div style="font-size:13px; margin-top:2px;">${d.state} (Rank #${d.yState || 'N/A'})</div>
+        </div>
+        <div style="margin-bottom:12px;">
+            <label style="font-size:10px; color:#9ca3af; font-family:'JetBrains Mono';">RECORDS COMPROMISED</label>
+            <div style="color:#ef4444; font-size:22px; font-weight:700; margin-top:2px;">${d.totalExposed.toLocaleString()}</div>
+        </div>
+        <div style="margin-bottom:12px;">
+            <label style="font-size:10px; color:#9ca3af; font-family:'JetBrains Mono';">INCIDENT DATE</label>
+            <div style="font-size:13px; margin-top:2px;">${d.date}</div>
+        </div>
         
         <div style="margin-top:16px; padding-top:12px; border-top:1px solid rgba(255,255,255,0.1);">
             <a href="${d.hhsUrl}" target="_blank" rel="noopener noreferrer" style="color:#38bdf8; text-decoration:underline; font-size:11px; font-family:'JetBrains Mono';">
