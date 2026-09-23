@@ -3,88 +3,122 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Healthcare Breach Radar</title>
+    <title>Healthcare Breach Intelligence Radar</title>
     <link rel="stylesheet" href="style.css">
-    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Plus+Jakarta+Sans:wght@400;600;700&display=swap" rel="stylesheet">
     
+    <!-- Professional Typography -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,400;0,600;0,700;1,400&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Dependencies -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns"></script>
     <script src="https://d3js.org/d3.v7.min.js"></script>
 </head>
 <body>
     <div class="app-shell">
+        
+        <!-- SIDEBAR NAVIGATION -->
         <aside class="sidebar-nav">
-            <div class="logo-area">
-                <div class="shield-icon">🛡️</div>
-                <span>Healthcare Breach Tracker <small>INTEL</small></span>
+            <div class="brand-block">
+                <div class="brand-icon">🛡️</div>
+                <div class="brand-text">
+                    <h1>Healthcare Breach Tracker</h1>
+                    <span class="badge-intel">INTEL RADAR</span>
+                </div>
             </div>
-            
-            <div class="stats-summary">
-                <label>GLOBAL IMPACT</label>
-                <div id="total-affected" class="big-num">---</div>
-                <p style="margin: 5px 0 0 0; font-size: 11px; color: #8b949e; line-height: 1.4;">
-                    Total Records Exposed Across All Documented Vectors
-                </p>
+
+            <!-- KEY METRIC CARD -->
+            <div class="metric-card">
+                <span class="metric-label">TOTAL RECORDS EXPOSED</span>
+                <div id="total-affected" class="metric-value">---</div>
+                <p class="metric-subtext">Documented across all registered incident vectors.</p>
             </div>
-            
-            <nav class="side-links">
-                <a href="#" class="nav-item active">Breach Radar</a>
-                <a href="https://medisecproject.org/#projects" target="_blank" class="nav-item active-highlight">
-                    Stay informed! Read about cybersecurity's role in healthcare now.
+
+            <nav class="nav-links">
+                <a href="#" class="nav-link active">
+                    <span class="icon">📊</span> Breach Analytics
+                </a>
+                <a href="https://medisecproject.org/#projects" target="_blank" class="nav-link highlight">
+                    <span class="icon">🔒</span> Healthcare Cybersecurity Report ↗
                 </a>
             </nav>
+
+            <div class="sidebar-footer">
+                <div class="status-indicator">
+                    <span class="pulse-dot"></span>
+                    <span id="sync-status">SYNCING WITH HHS...</span>
+                </div>
+            </div>
         </aside>
 
-        <main class="viewport">
-            <header class="top-bar">
-                <div class="sync-wrapper">
-                    <span id="sync-status">INITIALIZING AI...</span>
+        <!-- MAIN VIEWPORT -->
+        <main class="viewport-content">
+            
+            <!-- TOP BAR CONTROLS -->
+            <header class="dashboard-header">
+                <div class="header-titles">
+                    <h2>Incident Distribution Radar</h2>
+                    <p class="citation-text">
+                        Source: U.S. Department of Health and Human Services (HHS) Office for Civil Rights — 
+                        <a href="https://ocrportal.hhs.gov/ocr/breach/breach_report.jsf" target="_blank" rel="noopener noreferrer">
+                            Official Public Breach Register ↗
+                        </a>
+                    </p>
                 </div>
-                <button class="cta-pill" onclick="openProjectBriefing()" style="cursor:pointer; border:none; margin-right:10px;">
-                    Explore More About the Tracker
-                </button>
+
+                <div class="header-actions">
+                    <button class="briefing-btn" onclick="openProjectBriefing()">
+                        ℹ️ Methodology
+                    </button>
+                </div>
             </header>
 
-            <div class="source-banner" style="margin: 15px 20px 0 20px; padding: 10px 14px; background: rgba(2, 132, 199, 0.1); border-left: 3px solid #0284c7; border-radius: 4px; font-size: 0.85rem; color: #cbd5e1;">
-                <strong>Data Source:</strong> U.S. Department of Health and Human Services (HHS) Office for Civil Rights — 
-                <a href="https://ocrportal.hhs.gov/ocr/breach/breach_report.jsf" target="_blank" rel="noopener noreferrer" style="color: #38bdf8; text-decoration: underline;">
-                    Official Public Breach Register
-                </a>
-            </div>
-
-            <div class="controls-bar" style="margin: 15px 20px 5px 20px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
-                <div class="view-toggle" style="display: flex; gap: 6px; align-items: center;">
-                    <span style="font-size: 0.75rem; font-family: 'JetBrains Mono'; color: #8b949e;">VIEW MODE:</span>
-                    <button id="btn-vector" class="view-btn active" onclick="setChartMode('VECTOR')">By Attack Vector (Default)</button>
-                    <button id="btn-state" class="view-btn" onclick="setChartMode('STATE')">By State Population Rank</button>
-                </div>
-
-                <div class="time-controls" style="display: flex; gap: 12px; align-items: center;">
-                    <div style="display: flex; gap: 6px; align-items: center;">
-                        <span style="font-size: 0.75rem; font-family: 'JetBrains Mono'; color: #8b949e;">SELECT YEAR:</span>
-                        <select id="year-select" onchange="onYearChange(this.value)" style="background: #161b22; color: #00d2ff; border: 1px solid rgba(255,255,255,0.2); padding: 5px 10px; border-radius: 4px; font-family: 'JetBrains Mono'; font-size: 0.8rem; cursor: pointer;">
-                            <option value="LOADING">Loading dataset years...</option>
-                        </select>
+            <!-- DASHBOARD CONTROL TOOLBAR -->
+            <div class="toolbar">
+                <div class="control-group">
+                    <span class="control-label">VIEW MODE:</span>
+                    <div class="button-group">
+                        <button id="btn-vector" class="toggle-btn active" onclick="setChartMode('VECTOR')">
+                            By Attack Vector
+                        </button>
+                        <button id="btn-state" class="toggle-btn" onclick="setChartMode('STATE')">
+                            By State Population
+                        </button>
                     </div>
                 </div>
+
+                <div class="control-group">
+                    <label for="year-select" class="control-label">TIMELINE FILTER:</label>
+                    <select id="year-select" class="styled-select" onchange="onYearChange(this.value)">
+                        <option value="LOADING">Loading dataset years...</option>
+                    </select>
+                </div>
             </div>
 
-            <div class="chart-container" style="position: relative; height: calc(100vh - 250px); margin: 10px 20px;">
+            <!-- MAIN CHART CANVAS CONTAINER -->
+            <div class="chart-wrapper">
                 <div id="loader" class="spinner"></div>
                 <canvas id="breachChart"></canvas>
             </div>
 
-            <div id="legend-container" style="margin: 5px 20px 20px 20px; display: flex; gap: 16px; flex-wrap: wrap; font-size: 0.75rem; font-family: 'JetBrains Mono';"></div>
+            <!-- COLOR LEGEND BAR -->
+            <footer class="legend-bar">
+                <span class="legend-title">INCIDENT CATEGORIES:</span>
+                <div id="legend-container" class="legend-items"></div>
+            </footer>
         </main>
 
+        <!-- DETAIL SLIDE-OUT PANEL -->
         <div id="side-panel" class="intel-drawer">
             <div class="drawer-header">
+                <h3>INCIDENT TERMINAL DATA</h3>
                 <button class="close-btn" onclick="closePanel()">×</button>
-                <h2 style="margin-top: 10px; font-family: 'JetBrains Mono', monospace; font-size: 1.2rem; letter-spacing: 1px;">
-                    TERMINAL DATA
-                </h2>
             </div>
-            <div id="panel-content" class="drawer-body"></div>
+            <div id="panel-content" class="drawer-body">
+                <!-- Dynamic details load here on dot click -->
+            </div>
         </div>
     </div>
     
